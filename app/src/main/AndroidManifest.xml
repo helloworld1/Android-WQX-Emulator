@@ -19,7 +19,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name="gmail.hackwaly.nc1020.NC1020_Service"></service>
     </application>
 
 </manifest>

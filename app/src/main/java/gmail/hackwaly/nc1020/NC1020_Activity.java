@@ -31,35 +31,34 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 
 public class NC1020_Activity extends Activity implements Callback, OnKeyListener {
+    private static final int FRAME_RATE = 50;
+    private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
+
     private byte[] lcdBuffer;
     private byte[] lcdBufferEx;
     private Bitmap lcdBitmap;
     private Matrix lcdMatrix;
-    private SurfaceView lcdSurfaceView;
     private SurfaceHolder lcdSurfaceHolder;
-    private NC1020_KeypadView gmudKeypad;
     private SharedPreferences prefs;
+    private boolean speedUp;
+    private Handler handler = new Handler();
 
-    private class NC1020_ResultReceiver extends ResultReceiver {
-        public NC1020_ResultReceiver(Handler handler) {
-            super(handler);
-        }
+    private final Runnable frameRunnable = new Runnable(){
 
         @Override
-        protected void onReceiveResult(int resultCode, Bundle resultData) {
-            switch (resultCode) {
-                case NC1020_Service.RESULT_QUIT:
-                    NC1020_JNI.Save();
-                    finish();
-                    break;
-                case NC1020_Service.RESULT_FRAME:
+        public void run() {
+            NC1020_JNI.RunTimeSlice(FRAME_INTERVAL, speedUp);
+            handler.postDelayed(frameRunnable, FRAME_INTERVAL);
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
                     updateLcd();
-                    break;
-            }
-        }
-    }
 
-    private NC1020_ResultReceiver frameReceiver;
+                }
+            });
+        }
+
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,10 +69,10 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        gmudKeypad = (NC1020_KeypadView) findViewById(R.id.gmud_keypad);
+        NC1020_KeypadView gmudKeypad = (NC1020_KeypadView) findViewById(R.id.gmud_keypad);
         gmudKeypad.setOnKeyListener(this);
 
-        lcdSurfaceView = (SurfaceView) findViewById(R.id.lcd);
+        SurfaceView lcdSurfaceView = (SurfaceView) findViewById(R.id.lcd);
         lcdSurfaceHolder = lcdSurfaceView.getHolder();
         lcdBuffer = new byte[1600];
         lcdBufferEx = new byte[1600 * 8];
@@ -81,22 +80,22 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
         lcdMatrix = new Matrix();
 
         lcdSurfaceHolder.addCallback(this);
-        frameReceiver = new NC1020_ResultReceiver(null);
         String dir = initDataFolder();
         NC1020_JNI.Initialize(dir);
         NC1020_JNI.Load();
-        tellService(true);
+
     }
 
     @Override
     public void onResume() {
-        tellBackground(false);
+        handler.post(frameRunnable);
+
         super.onResume();
     }
 
     @Override
     public void onPause() {
-        tellBackground(true);
+        handler.removeCallbacks(frameRunnable);
         super.onPause();
     }
 
@@ -111,7 +110,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
 
         return filesDir.getAbsolutePath();
     }
-    // Copy a file from asset to the dest file.
+
     public void copyFileFromAsset(String fileName, File folder) throws IOException {
         File dest = new File(folder.getAbsoluteFile() + "/" + fileName);
         if (dest.exists()) {
@@ -130,27 +129,6 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
         }
     }
 
-
-    private void tellService(boolean startOrStop){
-        Intent intent = new Intent(this, NC1020_Service.class);
-        intent.setAction("tellService");
-        intent.putExtra("value", startOrStop ? frameReceiver : null);
-        startService(intent);
-    }
-
-    private void tellSpeedUp(boolean speedUp){
-        Intent intent = new Intent(this, NC1020_Service.class);
-        intent.setAction("tellSpeedUp");
-        intent.putExtra("value", speedUp);
-        startService(intent);
-    }
-
-    private void tellBackground(boolean background){
-        Intent intent = new Intent(this, NC1020_Service.class);
-        intent.setAction("tellBackground");
-        intent.putExtra("value", background);
-        startService(intent);
-    }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event)  {
@@ -208,7 +186,6 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.action_quit:
-                tellService(false);
                 finish();
                 return true;
             case R.id.action_restart:
@@ -220,7 +197,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
                 } else {
                     item.setChecked(true);
                 }
-                tellSpeedUp(item.isChecked());
+                speedUp = item.isChecked();
                 prefs.edit().putBoolean("SpeedUp", item.isChecked()).commit();
                 return true;
             case R.id.action_load:
