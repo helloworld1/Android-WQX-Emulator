@@ -6,9 +6,8 @@
 
     <SurfaceView
         android:id="@+id/lcd"
-        android:layout_width="480px"
-        android:layout_height="240px"
-        android:layout_gravity="center_horizontal" />
+        android:layout_width="0dp"
+        android:layout_height="0dp" />
 
     <FrameLayout
         android:layout_width="match_parent"

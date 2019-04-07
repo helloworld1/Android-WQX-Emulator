@@ -4,24 +4,21 @@ import gmail.hackwaly.nc1020.NC1020_KeypadView.OnKeyListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 
+import android.graphics.Point;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
-import android.os.ResultReceiver;
 import android.preference.PreferenceManager;
 import android.app.Activity;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.view.Display;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -29,6 +26,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
 import android.view.WindowManager;
+import android.widget.LinearLayout;
 
 public class NC1020_Activity extends Activity implements Callback, OnKeyListener {
     private static final int FRAME_RATE = 50;
@@ -42,6 +40,8 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
     private SharedPreferences prefs;
     private boolean speedUp;
     private Handler handler = new Handler();
+
+    float displayScale = 1f;
 
     private final Runnable frameRunnable = new Runnable(){
 
@@ -73,6 +73,12 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
         gmudKeypad.setOnKeyListener(this);
 
         SurfaceView lcdSurfaceView = (SurfaceView) findViewById(R.id.lcd);
+        int width = (int) (getScreenWidth() * 0.9f);
+        displayScale = (float) width / 160;
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( width, width / 2);
+        params.gravity = Gravity.CENTER_HORIZONTAL;
+        lcdSurfaceView.setLayoutParams(params);
+
         lcdSurfaceHolder = lcdSurfaceView.getHolder();
         lcdBuffer = new byte[1600];
         lcdBufferEx = new byte[1600 * 8];
@@ -218,12 +224,14 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        lcdMatrix.setScale(3, 3);
+        lcdMatrix.setScale(displayScale, displayScale);
 
         Canvas lcdCanvas = lcdSurfaceHolder.lockCanvas();
         lcdCanvas.drawColor(0xFF72B056);
         lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
     }
+
+
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
@@ -237,6 +245,13 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
     @Override
     public void onKeyUp(int keyId) {
         NC1020_JNI.SetKey(keyId, false);
+    }
+
+    private int getScreenWidth() {
+        Display display = getWindowManager(). getDefaultDisplay();
+        Point size = new Point();
+        display. getSize(size);
+        return size. x;
     }
 
 }
