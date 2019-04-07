@@ -61,7 +61,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
     };
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -105,37 +105,6 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
         super.onPause();
     }
 
-    private String initDataFolder() {
-        File filesDir = getApplicationContext().getFilesDir();
-        try {
-            copyFileFromAsset("nc1020.fls", filesDir);
-            copyFileFromAsset("obj_lu.bin", filesDir);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        return filesDir.getAbsolutePath();
-    }
-
-    public void copyFileFromAsset(String fileName, File folder) throws IOException {
-        File dest = new File(folder.getAbsoluteFile() + "/" + fileName);
-        if (dest.exists()) {
-            return;
-        }
-        try (InputStream in = getResources().getAssets().open(fileName)) {
-
-            try (FileOutputStream out = new FileOutputStream(dest)) {
-                byte[] buffer = new byte[8192];
-
-                int count;
-                while ((count = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, count);
-                }
-            }
-        }
-    }
-
-
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event)  {
         if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
@@ -152,30 +121,6 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
             return true;
         }
         return super.onKeyDown(keyCode, event);
-    }
-
-    private void updateLcd() {
-        if (!NC1020_JNI.CopyLcdBuffer(lcdBuffer)) {
-            return;
-        }
-        Canvas lcdCanvas = lcdSurfaceHolder.lockCanvas();
-        for (int y = 0; y < 80; y++) {
-            for (int j = 0; j < 20; j++) {
-                byte p = lcdBuffer[20 * y + j];
-                for (int k = 0; k < 8; k++) {
-                    lcdBufferEx[y * 160 + j * 8 + k] = (byte) ((p & (1 << (7 - k))) != 0 ? 0xFF
-                            : 0x00);
-                }
-            }
-        }
-        for (int y = 0; y < 80; y++) {
-            lcdBufferEx[y * 160] = 0;
-        }
-        lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx));
-        lcdCanvas.drawColor(0xFF72B056);
-        lcdCanvas.drawBitmap(lcdBitmap, lcdMatrix, null);
-
-        lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
     }
 
     @Override
@@ -247,11 +192,65 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
         NC1020_JNI.SetKey(keyId, false);
     }
 
+    private String initDataFolder() {
+        File filesDir = getApplicationContext().getFilesDir();
+        try {
+            copyFileFromAsset("nc1020.fls", filesDir);
+            copyFileFromAsset("obj_lu.bin", filesDir);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return filesDir.getAbsolutePath();
+    }
+
+    private void copyFileFromAsset(String fileName, File folder) throws IOException {
+        File dest = new File(folder.getAbsoluteFile() + "/" + fileName);
+        if (dest.exists()) {
+            return;
+        }
+        try (InputStream in = getResources().getAssets().open(fileName)) {
+
+            try (FileOutputStream out = new FileOutputStream(dest)) {
+                byte[] buffer = new byte[8192];
+
+                int count;
+                while ((count = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, count);
+                }
+            }
+        }
+    }
+
     private int getScreenWidth() {
         Display display = getWindowManager(). getDefaultDisplay();
         Point size = new Point();
         display. getSize(size);
         return size. x;
+    }
+
+    private void updateLcd() {
+        if (!NC1020_JNI.CopyLcdBuffer(lcdBuffer)) {
+            return;
+        }
+        Canvas lcdCanvas = lcdSurfaceHolder.lockCanvas();
+        for (int y = 0; y < 80; y++) {
+            for (int j = 0; j < 20; j++) {
+                byte p = lcdBuffer[20 * y + j];
+                for (int k = 0; k < 8; k++) {
+                    lcdBufferEx[y * 160 + j * 8 + k] = (byte) ((p & (1 << (7 - k))) != 0 ? 0xFF
+                            : 0x00);
+                }
+            }
+        }
+        for (int y = 0; y < 80; y++) {
+            lcdBufferEx[y * 160] = 0;
+        }
+        lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx));
+        lcdCanvas.drawColor(0xFF72B056);
+        lcdCanvas.drawBitmap(lcdBitmap, lcdMatrix, null);
+
+        lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
     }
 
 }
