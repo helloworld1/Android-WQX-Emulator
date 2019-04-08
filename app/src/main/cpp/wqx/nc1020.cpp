@@ -108,27 +108,13 @@ static uint8_t* ram_page2 = ram_buff + 0x4000;
 static uint8_t* ram_page3 = ram_buff + 0x6000;
 
 static uint8_t* clock_buff = nc1020_states.clock_data;
-static uint8_t& clock_flags = nc1020_states.clock_flags;
 
 static uint8_t* jg_wav_buff = nc1020_states.jg_wav_data;
-static bool& jg_wav_playing = nc1020_states.jg_wav_playing;
 
 static uint8_t* bak_40 = nc1020_states.bak_40;
 static uint8_t* fp_buff = nc1020_states.fp_buff;
 
-static bool& slept = nc1020_states.slept;
-static bool& should_wake_up = nc1020_states.should_wake_up;
-static bool& wake_up_pending = nc1020_states.pending_wake_up;
-static uint8_t& wake_up_key = nc1020_states.wake_up_flags;
-
-static bool& should_irq = nc1020_states.should_irq;
-static bool& timer0_toggle = nc1020_states.timer0_toggle;
-static size_t& cycles = nc1020_states.cycles;
-static size_t& timer0_cycles = nc1020_states.timer0_cycles;
-static size_t& timer1_cycles = nc1020_states.timer1_cycles;
-
 static uint8_t* keypad_matrix = nc1020_states.keypad_matrix;
-static size_t& lcd_addr = nc1020_states.lcd_addr;
 
 static io_read_func_t io_read[0x40];
 static io_write_func_t io_write[0x40];
@@ -235,14 +221,14 @@ void IO_API Write05(uint8_t addr, uint8_t value){
 	uint8_t old_value = ram_io[addr];
 	ram_io[addr] = value;
 	if ((old_value ^ value) & 0x08) {
-		slept = !(value & 0x08);
+		nc1020_states.slept = !(value & 0x08);
 	}
 }
 
 void IO_API Write06(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
-    if (!lcd_addr) {
-    	lcd_addr = ((ram_io[0x0C] & 0x03) << 12) | (value << 4);
+    if (!nc1020_states.lcd_addr) {
+    	nc1020_states.lcd_addr = ((ram_io[0x0C] & 0x03) << 12) | (value << 4);
     }
     ram_io[0x09] &= 0xFE;
 }
@@ -346,13 +332,13 @@ void IO_API Write23(uint8_t addr, uint8_t value){
         ram_io[0x20] = 0x80;
         nc1020_states.jg_wav_flags = 0;
         if (nc1020_states.jg_wav_idx) {
-            if (!jg_wav_playing) {
+            if (!nc1020_states.jg_wav_playing) {
                 GenerateAndPlayJGWav();
                 nc1020_states.jg_wav_idx = 0;
             }
         }
     }
-    if (jg_wav_playing) {
+    if (nc1020_states.jg_wav_playing) {
         // todo.
     }
 }
@@ -364,10 +350,10 @@ void IO_API Write3F(uint8_t addr, uint8_t value){
     if (idx >= 0x07) {
         if (idx == 0x0B) {
             ram_io[0x3D] = 0xF8;
-            clock_flags |= value & 0x07;
+            nc1020_states.clock_flags |= value & 0x07;
             clock_buff[0x0B] = value ^ ((clock_buff[0x0B] ^ value) & 0x7F);
         } else if (idx == 0x0A) {
-            clock_flags |= value & 0x07;
+            nc1020_states.clock_flags |= value & 0x07;
             clock_buff[0x0A] = value;
         } else {
             clock_buff[idx % 80] = value;
@@ -394,7 +380,7 @@ void AdjustTime(){
 
 bool IsCountDown(){
     if (!(clock_buff[10] & 0x02) ||
-        !(clock_flags & 0x02)) {
+        !(nc1020_states.clock_flags & 0x02)) {
         return false;
     }
     return (
@@ -464,9 +450,9 @@ inline uint8_t Load(uint16_t addr) {
 		nc1020_states.fp_step = 0;
 		return 0x88;
 	}
-	if (addr == 0x45F && wake_up_pending) {
-		wake_up_pending = false;
-		memmap[0][0x45F] = wake_up_key;
+	if (addr == 0x45F && nc1020_states.pending_wake_up) {
+		nc1020_states.pending_wake_up = false;
+		memmap[0][0x45F] = nc1020_states.wake_up_flags;
 	}
 	return Peek(addr);
 }
@@ -651,31 +637,31 @@ void ResetStates(){
 	memset(keypad_matrix, 0, 8);
 
 	memset(clock_buff, 0, 80);
-	clock_flags = 0;
+	nc1020_states.clock_flags = 0;
 
-	timer0_toggle = false;
+	nc1020_states.timer0_toggle = false;
 
 	memset(jg_wav_buff, 0, 0x20);
 	nc1020_states.jg_wav_flags = 0;
 	nc1020_states.jg_wav_idx = 0;
 
-	should_wake_up = false;
-	wake_up_pending = false;
+	nc1020_states.should_wake_up = false;
+	nc1020_states.pending_wake_up = false;
 
 	memset(fp_buff, 0, 0x100);
 	nc1020_states.fp_step = 0;
 
-	should_irq = false;
+	nc1020_states.should_irq = false;
 
-	cycles = 0;
+	nc1020_states.cycles = 0;
 	nc1020_states.cpu.reg_a = 0;
 	nc1020_states.cpu.reg_ps = 0x24;
 	nc1020_states.cpu.reg_x = 0;
 	nc1020_states.cpu.reg_y = 0;
 	nc1020_states.cpu.reg_sp = 0xFF;
 	nc1020_states.cpu.reg_pc = PeekW(RESET_VEC);
-	timer0_cycles = CYCLES_TIMER0;
-	timer1_cycles = CYCLES_TIMER1;
+	nc1020_states.timer0_cycles = CYCLES_TIMER0;
+	nc1020_states.timer1_cycles = CYCLES_TIMER1;
 
 //#ifdef DEBUG
 //	executed_insts = 0;
@@ -733,33 +719,33 @@ void SetKey(uint8_t key_id, bool down_or_up){
 	}
 
 	if (down_or_up) {
-		if (slept) {
+		if (nc1020_states.slept) {
 			if (key_id >= 0x08 && key_id <= 0x0F && key_id != 0x0E) {
 				switch (key_id) {
-				case 0x08: wake_up_key = 0x00; break;
-				case 0x09: wake_up_key = 0x0A; break;
-				case 0x0A: wake_up_key = 0x08; break;
-				case 0x0B: wake_up_key = 0x06; break;
-				case 0x0C: wake_up_key = 0x04; break;
-				case 0x0D: wake_up_key = 0x02; break;
-				case 0x0E: wake_up_key = 0x0C; break;
-				case 0x0F: wake_up_key = 0x00; break;
+				case 0x08: nc1020_states.wake_up_flags = 0x00; break;
+				case 0x09: nc1020_states.wake_up_flags = 0x0A; break;
+				case 0x0A: nc1020_states.wake_up_flags = 0x08; break;
+				case 0x0B: nc1020_states.wake_up_flags = 0x06; break;
+				case 0x0C: nc1020_states.wake_up_flags = 0x04; break;
+				case 0x0D: nc1020_states.wake_up_flags = 0x02; break;
+				case 0x0E: nc1020_states.wake_up_flags = 0x0C; break;
+				case 0x0F: nc1020_states.wake_up_flags = 0x00; break;
 				}
-				should_wake_up = true;
-				wake_up_pending = true;
-				slept = false;
+				nc1020_states.should_wake_up = true;
+				nc1020_states.pending_wake_up = true;
+				nc1020_states.slept = false;
 			}
 		} else {
 			if (key_id == 0x0F) {
-				slept = true;
+				nc1020_states.slept = true;
 			}
 		}
 	}
 }
 
 bool CopyLcdBuffer(uint8_t* buffer){
-	if (lcd_addr == 0) return false;
-	memcpy(buffer, ram_buff + lcd_addr, 1600);
+	if (nc1020_states.lcd_addr == 0) return false;
+	memcpy(buffer, ram_buff + nc1020_states.lcd_addr, 1600);
 	return true;
 }
 
@@ -2503,22 +2489,22 @@ void RunTimeSlice(size_t time_slice, bool speed_up) {
 //			}
 //		}
 //#else
-		if (cycles >= timer0_cycles) {
-			timer0_cycles += CYCLES_TIMER0;
-			timer0_toggle = !timer0_toggle;
-			if (!timer0_toggle) {
+		if (cycles >= nc1020_states.timer0_cycles) {
+			nc1020_states.timer0_cycles += CYCLES_TIMER0;
+			nc1020_states.timer0_toggle = !nc1020_states.timer0_toggle;
+			if (!nc1020_states.timer0_toggle) {
 				AdjustTime();
 			}
-			if (!IsCountDown() || timer0_toggle) {
+			if (!IsCountDown() || nc1020_states.timer0_toggle) {
 				ram_io[0x3D] = 0;
 			} else {
 				ram_io[0x3D] = 0x20;
-				clock_flags &= 0xFD;
+				nc1020_states.clock_flags &= 0xFD;
 			}
-			should_irq = true;
+			nc1020_states.should_irq = true;
 		}
-		if (should_irq && !(reg_ps & 0x04)) {
-			should_irq = false;
+		if (nc1020_states.should_irq && !(reg_ps & 0x04)) {
+			nc1020_states.should_irq = false;
 			stack[reg_sp --] = reg_pc >> 8;
 			stack[reg_sp --] = reg_pc & 0xFF;
 			reg_ps &= 0xEF;
@@ -2527,29 +2513,29 @@ void RunTimeSlice(size_t time_slice, bool speed_up) {
 			reg_ps |= 0x04;
 			cycles += 7;
 		}
-		if (cycles >= timer1_cycles) {
+		if (cycles >= nc1020_states.timer1_cycles) {
 			if (speed_up) {
-				timer1_cycles += CYCLES_TIMER1_SPEED_UP;
+				nc1020_states.timer1_cycles += CYCLES_TIMER1_SPEED_UP;
 			} else {
-				timer1_cycles += CYCLES_TIMER1;
+				nc1020_states.timer1_cycles += CYCLES_TIMER1;
 			}
 			clock_buff[4] ++;
-			if (should_wake_up) {
-				should_wake_up = false;
+			if (nc1020_states.should_wake_up) {
+				nc1020_states.should_wake_up = false;
 				ram_io[0x01] |= 0x01;
 				ram_io[0x02] |= 0x01;
 				reg_pc = PeekW(RESET_VEC);
 			} else {
 				ram_io[0x01] |= 0x08;
-				should_irq = true;
+				nc1020_states.should_irq = true;
 			}
 		}
 //#endif
 	}
 
 	cycles -= end_cycles;
-	timer0_cycles -= end_cycles;
-	timer1_cycles -= end_cycles;
+	nc1020_states.timer0_cycles -= end_cycles;
+	nc1020_states.timer1_cycles -= end_cycles;
 
 	nc1020_states.cpu.reg_pc = reg_pc;
 	nc1020_states.cpu.reg_a = reg_a;
