@@ -23,13 +23,12 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceHolder;
-import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 
-public class NC1020Activity extends Activity implements Callback, OnKeyListener {
-    private static final int FRAME_RATE = 50;
+public class NC1020Activity extends Activity implements SurfaceHolder.Callback, OnKeyListener {
+    private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
 
     private byte[] lcdBuffer;
@@ -86,6 +85,7 @@ public class NC1020Activity extends Activity implements Callback, OnKeyListener 
         lcdMatrix = new Matrix();
 
         lcdSurfaceHolder.addCallback(this);
+
         String dir = initDataFolder();
         NC1020JNI.Initialize(dir);
         NC1020JNI.Load();
