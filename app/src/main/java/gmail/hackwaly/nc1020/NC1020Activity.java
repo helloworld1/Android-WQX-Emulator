@@ -1,6 +1,6 @@
 package gmail.hackwaly.nc1020;
 
-import gmail.hackwaly.nc1020.NC1020_KeypadView.OnKeyListener;
+import gmail.hackwaly.nc1020.NC1020KeypadView.OnKeyListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -28,7 +28,7 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 
-public class NC1020_Activity extends Activity implements Callback, OnKeyListener {
+public class NC1020Activity extends Activity implements Callback, OnKeyListener {
     private static final int FRAME_RATE = 50;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
 
@@ -47,7 +47,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
 
         @Override
         public void run() {
-            NC1020_JNI.RunTimeSlice(FRAME_INTERVAL, speedUp);
+            NC1020JNI.RunTimeSlice(FRAME_INTERVAL, speedUp);
             handler.postDelayed(frameRunnable, FRAME_INTERVAL);
             handler.post(new Runnable() {
                 @Override
@@ -69,7 +69,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        NC1020_KeypadView gmudKeypad = (NC1020_KeypadView) findViewById(R.id.gmud_keypad);
+        NC1020KeypadView gmudKeypad = (NC1020KeypadView) findViewById(R.id.gmud_keypad);
         gmudKeypad.setOnKeyListener(this);
 
         SurfaceView lcdSurfaceView = (SurfaceView) findViewById(R.id.lcd);
@@ -87,8 +87,8 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
 
         lcdSurfaceHolder.addCallback(this);
         String dir = initDataFolder();
-        NC1020_JNI.Initialize(dir);
-        NC1020_JNI.Load();
+        NC1020JNI.Initialize(dir);
+        NC1020JNI.Load();
 
     }
 
@@ -108,7 +108,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event)  {
         if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-            NC1020_JNI.SetKey(0x3B, true);
+            NC1020JNI.SetKey(0x3B, true);
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -117,7 +117,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event)  {
         if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-            NC1020_JNI.SetKey(0x3B, false);
+            NC1020JNI.SetKey(0x3B, false);
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -140,7 +140,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
                 finish();
                 return true;
             case R.id.action_restart:
-                NC1020_JNI.Reset();
+                NC1020JNI.Reset();
                 return true;
             case R.id.action_speed_up:
                 if (item.isChecked()) {
@@ -152,10 +152,10 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
                 prefs.edit().putBoolean("SpeedUp", item.isChecked()).commit();
                 return true;
             case R.id.action_load:
-                NC1020_JNI.Load();
+                NC1020JNI.Load();
                 return true;
             case R.id.action_save:
-                NC1020_JNI.Save();
+                NC1020JNI.Save();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -184,12 +184,12 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
 
     @Override
     public void onKeyDown(int keyId) {
-        NC1020_JNI.SetKey(keyId, true);
+        NC1020JNI.SetKey(keyId, true);
     }
 
     @Override
     public void onKeyUp(int keyId) {
-        NC1020_JNI.SetKey(keyId, false);
+        NC1020JNI.SetKey(keyId, false);
     }
 
     private String initDataFolder() {
@@ -230,7 +230,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
     }
 
     private void updateLcd() {
-        if (!NC1020_JNI.CopyLcdBuffer(lcdBuffer)) {
+        if (!NC1020JNI.CopyLcdBuffer(lcdBuffer)) {
             return;
         }
         Canvas lcdCanvas = lcdSurfaceHolder.lockCanvas();

@@ -1,6 +1,6 @@
 package gmail.hackwaly.nc1020;
 
-public class NC1020_JNI {
+public class NC1020JNI {
 	public static native void Initialize(String path);
 	public static native void Reset();
 	public static native void Load();

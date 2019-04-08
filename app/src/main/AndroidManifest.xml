@@ -10,7 +10,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name="gmail.hackwaly.nc1020.NC1020_Activity"
+            android:name="gmail.hackwaly.nc1020.NC1020Activity"
             android:launchMode="singleInstance"
             android:label="@string/app_name" >
             <intent-filter>

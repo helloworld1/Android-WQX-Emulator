@@ -9,7 +9,7 @@
  * Method:    Initialize
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Initialize
+JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020JNI_Initialize
   (JNIEnv *, jobject, jstring);
 
 /*
@@ -17,7 +17,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Initialize
  * Method:    Reset
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Reset
+JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020JNI_Reset
   (JNIEnv *, jobject);
 
 /*
@@ -25,7 +25,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Reset
  * Method:    Load
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Load
+JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020JNI_Load
   (JNIEnv *, jobject);
 
 /*
@@ -33,7 +33,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Load
  * Method:    Save
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Save
+JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020JNI_Save
   (JNIEnv *, jobject);
 
 /*
@@ -41,7 +41,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Save
  * Method:    SetKey
  * Signature: (IZ)V
  */
-JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_SetKey
+JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020JNI_SetKey
   (JNIEnv *, jobject, jint, jboolean);
 
 /*
@@ -49,7 +49,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_SetKey
  * Method:    RunTimeSlice
  * Signature: (I)V
  */
-JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_RunTimeSlice
+JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020JNI_RunTimeSlice
   (JNIEnv *, jobject, jint, jboolean);
 
 /*
@@ -57,6 +57,6 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_RunTimeSlice
  * Method:    CopyLcdBuffer
  * Signature: ([C)V
  */
-JNIEXPORT jboolean JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_CopyLcdBuffer
+JNIEXPORT jboolean JNICALL Java_gmail_hackwaly_nc1020_NC1020JNI_CopyLcdBuffer
   (JNIEnv *, jobject, jbyteArray);
 #endif

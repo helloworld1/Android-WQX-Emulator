@@ -8,7 +8,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
-public class NC1020_KeypadView extends LinearLayout implements
+public class NC1020KeypadView extends LinearLayout implements
 		android.view.View.OnTouchListener {
 	
 	public interface OnKeyListener {
@@ -114,17 +114,17 @@ public class NC1020_KeypadView extends LinearLayout implements
 		keyListener = listener;
 	}
 
-	public NC1020_KeypadView(Context context, AttributeSet attrs, int defStyle) {
+	public NC1020KeypadView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs);
 		initKeyBoard();
 	}
 
-	public NC1020_KeypadView(Context context, AttributeSet attrs) {
+	public NC1020KeypadView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		initKeyBoard();
 	}
 
-	public NC1020_KeypadView(Context context) {
+	public NC1020KeypadView(Context context) {
 		super(context);
 		initKeyBoard();
 	}
