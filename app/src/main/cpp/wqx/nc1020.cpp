@@ -1,11 +1,7 @@
 #include "nc1020.h"
-#include <string>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-namespace wqx {
-using std::string;
 
 // cpu cycles per second (cpu freq).
 const size_t CYCLES_SECOND = 5120000;
@@ -33,6 +29,10 @@ const uint16_t RESET_VEC = 0xFFFC;
 const uint16_t IRQ_VEC = 0xFFFE;
 
 const size_t VERSION = 0x06;
+
+const char *ROM_FILE_NAME = "obj_lu.bin";
+const char *NOR_FILE_NAME = "nc1020.fls";
+const char *STATE_FILE_NAME = "nc1020.sts";
 
 typedef struct {
 	uint16_t reg_pc;
@@ -80,7 +80,10 @@ typedef struct {
 	uint8_t keypad_matrix[8];
 } nc1020_states_t;
 
-static string nc1020_dir;
+static char nc1020_dir[255];
+static char rom_file_path[255];
+static char nor_file_path[255];
+static char state_file_path[255];
 
 static uint8_t rom_buff[ROM_SIZE];
 static uint8_t nor_buff[NOR_SIZE];
@@ -95,15 +98,6 @@ static uint8_t* bbs_pages[0x10];
 static uint8_t* memmap[8];
 static nc1020_states_t nc1020_states;
 
-static size_t& version = nc1020_states.version;
-
-static uint16_t& reg_pc = nc1020_states.cpu.reg_pc;
-static uint8_t& reg_a = nc1020_states.cpu.reg_a;
-static uint8_t& reg_ps = nc1020_states.cpu.reg_ps;
-static uint8_t& reg_x = nc1020_states.cpu.reg_x;
-static uint8_t& reg_y = nc1020_states.cpu.reg_y;
-static uint8_t& reg_sp = nc1020_states.cpu.reg_sp;
-
 static uint8_t* ram_buff = nc1020_states.ram;
 static uint8_t* stack = ram_buff + 0x100;
 static uint8_t* ram_io = ram_buff;
@@ -117,16 +111,9 @@ static uint8_t* clock_buff = nc1020_states.clock_data;
 static uint8_t& clock_flags = nc1020_states.clock_flags;
 
 static uint8_t* jg_wav_buff = nc1020_states.jg_wav_data;
-static uint8_t& jg_wav_flags = nc1020_states.jg_wav_flags;
-static uint8_t& jg_wav_index = nc1020_states.jg_wav_idx;
 static bool& jg_wav_playing = nc1020_states.jg_wav_playing;
 
 static uint8_t* bak_40 = nc1020_states.bak_40;
-static uint8_t& fp_step = nc1020_states.fp_step;
-static uint8_t& fp_type = nc1020_states.fp_type;
-static uint8_t& fp_bank_idx = nc1020_states.fp_bank_idx;
-static uint8_t& fp_bak1 = nc1020_states.fp_bak1;
-static uint8_t& fp_bak2 = nc1020_states.fp_bak2;
 static uint8_t* fp_buff = nc1020_states.fp_buff;
 
 static bool& slept = nc1020_states.slept;
@@ -341,27 +328,27 @@ void IO_API Write20(uint8_t addr, uint8_t value){
     if (value == 0x80 || value == 0x40) {
         memset(jg_wav_buff, 0, 0x20);
         ram_io[0x20] = 0;
-        jg_wav_flags = 1;
-        jg_wav_index = 0;
+        nc1020_states.jg_wav_flags = 1;
+        nc1020_states.jg_wav_idx= 0;
     }
 }
 
 void IO_API Write23(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     if (value == 0xC2) {
-        jg_wav_buff[jg_wav_index] = ram_io[0x22];
+        jg_wav_buff[nc1020_states.jg_wav_idx] = ram_io[0x22];
     } else if (value == 0xC4) {
-        if (jg_wav_index < 0x20) {
-            jg_wav_buff[jg_wav_index] = ram_io[0x22];
-            jg_wav_index ++;
+        if (nc1020_states.jg_wav_idx < 0x20) {
+            jg_wav_buff[nc1020_states.jg_wav_idx] = ram_io[0x22];
+            nc1020_states.jg_wav_idx ++;
         }
     } else if (value == 0x80) {
         ram_io[0x20] = 0x80;
-        jg_wav_flags = 0;
-        if (jg_wav_index) {
+        nc1020_states.jg_wav_flags = 0;
+        if (nc1020_states.jg_wav_idx) {
             if (!jg_wav_playing) {
                 GenerateAndPlayJGWav();
-                jg_wav_index = 0;
+                nc1020_states.jg_wav_idx = 0;
             }
         }
     }
@@ -432,7 +419,7 @@ void ProcessBinary(uint8_t* dest, uint8_t* src, size_t size){
 
 void LoadRom(){
 	uint8_t* temp_buff = (uint8_t*)malloc(ROM_SIZE);
-	FILE* file = fopen((nc1020_dir + "/obj_lu.bin").c_str(), "rb");
+	FILE* file = fopen(rom_file_path, "rb");
 	fread(temp_buff, 1, ROM_SIZE, file);
 	ProcessBinary(rom_buff, temp_buff, ROM_SIZE);
 	free(temp_buff);
@@ -441,7 +428,7 @@ void LoadRom(){
 
 void LoadNor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
-	FILE* file = fopen((nc1020_dir + "/nc1020.fls").c_str(), "rb");
+	FILE* file = fopen(nor_file_path, "rb");
 	fread(temp_buff, 1, NOR_SIZE, file);
 	ProcessBinary(nor_buff, temp_buff, NOR_SIZE);
 	free(temp_buff);
@@ -450,7 +437,7 @@ void LoadNor(){
 
 void SaveNor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
-	FILE* file = fopen((nc1020_dir + "/nc1020.fls").c_str(), "wb");
+	FILE* file = fopen(nor_file_path, "wb");
 	ProcessBinary(temp_buff, nor_buff, NOR_SIZE);
 	fwrite(temp_buff, 1, NOR_SIZE, file);
 	fflush(file);
@@ -471,10 +458,10 @@ inline uint8_t Load(uint16_t addr) {
 	if (addr < IO_LIMIT) {
 		return io_read[addr](addr);
 	}
-	if (((fp_step == 4 && fp_type == 2) ||
-		(fp_step == 6 && fp_type == 3)) &&
+	if (((nc1020_states.fp_step == 4 && nc1020_states.fp_type == 2) ||
+		(nc1020_states.fp_step == 6 && nc1020_states.fp_type == 3)) &&
 		(addr >= 0x4000 && addr < 0xC000)) {
-		fp_step = 0;
+		nc1020_states.fp_step = 0;
 		return 0x88;
 	}
 	if (addr == 0x45F && wake_up_pending) {
@@ -511,100 +498,103 @@ inline void Store(uint16_t addr, uint8_t value) {
 
     uint8_t* bank = nor_banks[bank_idx];
 
-    if (fp_step == 0) {
+    if (nc1020_states.fp_step == 0) {
         if (addr == 0x5555 && value == 0xAA) {
-            fp_step = 1;
+            nc1020_states.fp_step = 1;
         }
         return;
     }
-    if (fp_step == 1) {
+    if (nc1020_states.fp_step == 1) {
         if (addr == 0xAAAA && value == 0x55) {
-        	fp_step = 2;
+        	nc1020_states.fp_step = 2;
             return;
         }
-    } else if (fp_step == 2) {
+    } else if (nc1020_states.fp_step == 2) {
         if (addr == 0x5555) {
         	switch (value) {
-        	case 0x90: fp_type = 1; break;
-        	case 0xA0: fp_type = 2; break;
-        	case 0x80: fp_type = 3; break;
-        	case 0xA8: fp_type = 4; break;
-        	case 0x88: fp_type = 5; break;
-        	case 0x78: fp_type = 6; break;
+        	case 0x90: nc1020_states.fp_type = 1; break;
+        	case 0xA0: nc1020_states.fp_type = 2; break;
+        	case 0x80: nc1020_states.fp_type = 3; break;
+        	case 0xA8: nc1020_states.fp_type = 4; break;
+        	case 0x88: nc1020_states.fp_type = 5; break;
+        	case 0x78: nc1020_states.fp_type = 6; break;
         	}
-            if (fp_type) {
-                if (fp_type == 1) {
-                    fp_bank_idx = bank_idx;
-                    fp_bak1 = bank[0x4000];
-                    fp_bak1 = bank[0x4001];
+            if (nc1020_states.fp_type) {
+                if (nc1020_states.fp_type == 1) {
+                    nc1020_states.fp_bank_idx = bank_idx;
+                    nc1020_states.fp_bak1 = bank[0x4000];
+                    nc1020_states.fp_bak1 = bank[0x4001];
                 }
-                fp_step = 3;
+                nc1020_states.fp_step = 3;
                 return;
             }
         }
-    } else if (fp_step == 3) {
-        if (fp_type == 1) {
+    } else if (nc1020_states.fp_step == 3) {
+        if (nc1020_states.fp_type == 1) {
             if (value == 0xF0) {
-                bank[0x4000] = fp_bak1;
-                bank[0x4001] = fp_bak2;
-                fp_step = 0;
+                bank[0x4000] = nc1020_states.fp_bak1;
+                bank[0x4001] = nc1020_states.fp_bak2;
+                nc1020_states.fp_step = 0;
                 return;
             }
-        } else if (fp_type == 2) {
+        } else if (nc1020_states.fp_type == 2) {
             bank[addr - 0x4000] &= value;
-            fp_step = 4;
+            nc1020_states.fp_step = 4;
             return;
-        } else if (fp_type == 4) {
+        } else if (nc1020_states.fp_type == 4) {
             fp_buff[addr & 0xFF] &= value;
-            fp_step = 4;
+            nc1020_states.fp_step = 4;
             return;
-        } else if (fp_type == 3 || fp_type == 5) {
+        } else if (nc1020_states.fp_type == 3 || nc1020_states.fp_type == 5) {
             if (addr == 0x5555 && value == 0xAA) {
-                fp_step = 4;
+                nc1020_states.fp_step = 4;
                 return;
             }
         }
-    } else if (fp_step == 4) {
-        if (fp_type == 3 || fp_type == 5) {
+    } else if (nc1020_states.fp_step == 4) {
+        if (nc1020_states.fp_type == 3 || nc1020_states.fp_type == 5) {
             if (addr == 0xAAAA && value == 0x55) {
-                fp_step = 5;
+                nc1020_states.fp_step = 5;
                 return;
             }
         }
-    } else if (fp_step == 5) {
+    } else if (nc1020_states.fp_step == 5) {
         if (addr == 0x5555 && value == 0x10) {
         	for (size_t i=0; i<0x20; i++) {
                 memset(nor_banks[i], 0xFF, 0x8000);
             }
-            if (fp_type == 5) {
+            if (nc1020_states.fp_type == 5) {
                 memset(fp_buff, 0xFF, 0x100);
             }
-            fp_step = 6;
+            nc1020_states.fp_step = 6;
             return;
         }
-        if (fp_type == 3) {
+        if (nc1020_states.fp_type == 3) {
             if (value == 0x30) {
                 memset(bank + (addr - (addr % 0x800) - 0x4000), 0xFF, 0x800);
-                fp_step = 6;
+                nc1020_states.fp_step = 6;
                 return;
             }
-        } else if (fp_type == 5) {
+        } else if (nc1020_states.fp_type == 5) {
             if (value == 0x48) {
                 memset(fp_buff, 0xFF, 0x100);
-                fp_step = 6;
+                nc1020_states.fp_step = 6;
                 return;
             }
         }
     }
     if (addr == 0x8000 && value == 0xF0) {
-        fp_step = 0;
+        nc1020_states.fp_step = 0;
         return;
     }
     printf("error occurs when operate in flash!");
 }
 
 void Initialize(const char* path) {
-	nc1020_dir = string(path);
+    snprintf(rom_file_path, 255, "%s/%s", path, ROM_FILE_NAME);
+    snprintf(nor_file_path, 255, "%s/%s", path, NOR_FILE_NAME);
+    snprintf(state_file_path, 255, "%s/%s", path, STATE_FILE_NAME);
+
 	for (size_t i=0; i<0x100; i++) {
 		rom_volume0[i] = rom_buff + (0x8000 * i);
 		rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
@@ -651,7 +641,7 @@ void Initialize(const char* path) {
 }
 
 void ResetStates(){
-	version = VERSION;
+	nc1020_states.version = VERSION;
 
 	memset(ram_buff, 0, 0x8000);
 	memmap[0] = ram_page0;
@@ -666,24 +656,24 @@ void ResetStates(){
 	timer0_toggle = false;
 
 	memset(jg_wav_buff, 0, 0x20);
-	jg_wav_flags = 0;
-	jg_wav_index = 0;
+	nc1020_states.jg_wav_flags = 0;
+	nc1020_states.jg_wav_idx = 0;
 
 	should_wake_up = false;
 	wake_up_pending = false;
 
 	memset(fp_buff, 0, 0x100);
-	fp_step = 0;
+	nc1020_states.fp_step = 0;
 
 	should_irq = false;
 
 	cycles = 0;
-	reg_a = 0;
-	reg_ps = 0x24;
-	reg_x = 0;
-	reg_y = 0;
-	reg_sp = 0xFF;
-	reg_pc = PeekW(RESET_VEC);
+	nc1020_states.cpu.reg_a = 0;
+	nc1020_states.cpu.reg_ps = 0x24;
+	nc1020_states.cpu.reg_x = 0;
+	nc1020_states.cpu.reg_y = 0;
+	nc1020_states.cpu.reg_sp = 0xFF;
+	nc1020_states.cpu.reg_pc = PeekW(RESET_VEC);
 	timer0_cycles = CYCLES_TIMER0;
 	timer1_cycles = CYCLES_TIMER1;
 
@@ -700,20 +690,20 @@ void Reset() {
 
 void LoadStates(){
 	ResetStates();
-	FILE* file = fopen((nc1020_dir + "/nc1020.sts").c_str(), "rb");
+	FILE* file = fopen(state_file_path, "rb");
 	if (file == NULL) {
 		return;
 	}
 	fread(&nc1020_states, 1, sizeof(nc1020_states), file);
 	fclose(file);
-	if (version != VERSION) {
+	if (nc1020_states.version != VERSION) {
 		return;
 	}
 	SwitchVolume();
 }
 
 void SaveStates(){
-	FILE* file = fopen((nc1020_dir + "/nc1020.sts").c_str(), "wb");
+	FILE* file = fopen(state_file_path, "wb");
 	fwrite(&nc1020_states, 1, sizeof(nc1020_states), file);
 	fflush(file);
 	fclose(file);
@@ -775,59 +765,15 @@ bool CopyLcdBuffer(uint8_t* buffer){
 
 void RunTimeSlice(size_t time_slice, bool speed_up) {
 	size_t end_cycles = time_slice * CYCLES_MS;
-	register size_t cycles = wqx::cycles;
-	register uint16_t reg_pc = wqx::reg_pc;
-	register uint8_t reg_a = wqx::reg_a;
-	register uint8_t reg_ps = wqx::reg_ps;
-	register uint8_t reg_x = wqx::reg_x;
-	register uint8_t reg_y = wqx::reg_y;
-	register uint8_t reg_sp = wqx::reg_sp;
+	size_t cycles = nc1020_states.cycles;
+	uint16_t reg_pc = nc1020_states.cpu.reg_pc;
+	uint8_t reg_a = nc1020_states.cpu.reg_a;
+	uint8_t reg_ps = nc1020_states.cpu.reg_ps;
+	uint8_t reg_x = nc1020_states.cpu.reg_x;
+	uint8_t reg_y = nc1020_states.cpu.reg_y;
+	uint8_t reg_sp = nc1020_states.cpu.reg_sp;
 
 	while (cycles < end_cycles) {
-//#ifdef DEBUG
-//		if (executed_insts == 2792170) {
-//			printf("debug start!\n");
-//		}
-//		if (executed_insts >= debug_logs.insts_start &&
-//			executed_insts < debug_logs.insts_start + debug_logs.insts_count) {
-//			log_rec_t& log = debug_logs.logs[executed_insts - debug_logs.insts_start];
-//			string debug_info;
-//			if (log.reg_pc != reg_pc) {
-//				debug_info += " pc ";
-//			}
-//			if (log.reg_a != reg_a) {
-//				debug_info += " a ";
-//			}
-//			if (log.reg_ps != reg_ps) {
-//				debug_info += " ps ";
-//			}
-//			if (log.reg_x != reg_x) {
-//				debug_info += " x ";
-//			}
-//			if (log.reg_y != reg_y) {
-//				debug_info += " y ";
-//			}
-//			if (log.reg_sp != reg_sp) {
-//				debug_info += " sp ";
-//			}
-//			if (debug_logs.peek_addr != -1) {
-//				if (log.peeked != Peek((uint16_t)debug_logs.peek_addr)) {
-//					debug_info += " mem ";
-//				}
-//			} else {
-//				if (log.peeked != Peek(reg_pc)) {
-//					debug_info += " op ";
-//				}
-//			}
-//			if (debug_info.length()) {
-//				printf("%d: %s\n", executed_insts, debug_info.c_str());
-//				exit(-1);
-//			}
-//		}
-//		if (executed_insts >= debug_logs.insts_start + debug_logs.insts_count) {
-//			printf("ok\n");
-//		}
-//#endif
 		switch (Peek(reg_pc++)) {
 		case 0x00: {
 			reg_pc++;
@@ -2605,12 +2551,10 @@ void RunTimeSlice(size_t time_slice, bool speed_up) {
 	timer0_cycles -= end_cycles;
 	timer1_cycles -= end_cycles;
 
-	wqx::reg_pc = reg_pc;
-	wqx::reg_a = reg_a;
-	wqx::reg_ps = reg_ps;
-	wqx::reg_x = reg_x;
-	wqx::reg_y = reg_y;
-	wqx::reg_sp = reg_sp;
-}
-
+	nc1020_states.cpu.reg_pc = reg_pc;
+	nc1020_states.cpu.reg_a = reg_a;
+	nc1020_states.cpu.reg_ps = reg_ps;
+	nc1020_states.cpu.reg_x = reg_x;
+	nc1020_states.cpu.reg_y = reg_y;
+	nc1020_states.cpu.reg_sp = reg_sp;
 }

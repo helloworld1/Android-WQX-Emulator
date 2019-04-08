@@ -13,7 +13,7 @@ extern "C" {
 JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Initialize
   (JNIEnv *env, jobject, jstring path) {
 	const char* path1 = env->GetStringUTFChars(path, NULL);
-	wqx::Initialize(path1);
+	Initialize(path1);
 	env->ReleaseStringUTFChars(path, path1);
 }
 
@@ -24,7 +24,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Initialize
  */
 JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Reset
   (JNIEnv *, jobject) {
-	wqx::Reset();
+	Reset();
 }
 
 /*
@@ -34,7 +34,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Reset
  */
 JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Load
   (JNIEnv *, jobject) {
-	wqx::LoadNC1020();
+	LoadNC1020();
 }
 
 /*
@@ -44,7 +44,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Load
  */
 JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Save
   (JNIEnv *, jobject) {
-	wqx::SaveNC1020();
+	SaveNC1020();
 }
 
 /*
@@ -54,7 +54,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_Save
  */
 JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_SetKey
   (JNIEnv *, jobject, jint keyId, jboolean downOrUp) {
-	wqx::SetKey((uint8_t)(keyId & 0x3F), downOrUp);
+	SetKey((uint8_t)(keyId & 0x3F), downOrUp);
 }
 
 /*
@@ -64,7 +64,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_SetKey
  */
 JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_RunTimeSlice
   (JNIEnv *, jobject, jint timeSlice, jboolean speedUp) {
-	wqx::RunTimeSlice((size_t)timeSlice, speedUp);
+	RunTimeSlice((size_t)timeSlice, speedUp);
 }
 
 /*
@@ -75,7 +75,7 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_RunTimeSlice
 JNIEXPORT jboolean JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_CopyLcdBuffer
   (JNIEnv *env, jobject, jbyteArray buffer) {
 	jbyte* pBuffer = env->GetByteArrayElements(buffer, NULL);
-	jboolean result = wqx::CopyLcdBuffer((uint8_t*)pBuffer);
+	jboolean result = CopyLcdBuffer((uint8_t*)pBuffer);
 	env->ReleaseByteArrayElements(buffer, pBuffer, 0);
 	return result;
 }

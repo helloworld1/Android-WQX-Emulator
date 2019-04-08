@@ -73,7 +73,7 @@ public class NC1020_Activity extends Activity implements Callback, OnKeyListener
         gmudKeypad.setOnKeyListener(this);
 
         SurfaceView lcdSurfaceView = (SurfaceView) findViewById(R.id.lcd);
-        int width = (int) (getScreenWidth() * 0.9f);
+        int width = getScreenWidth();
         displayScale = (float) width / 160;
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( width, width / 2);
         params.gravity = Gravity.CENTER_HORIZONTAL;
