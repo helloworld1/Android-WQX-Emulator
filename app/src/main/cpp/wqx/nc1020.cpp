@@ -80,7 +80,6 @@ typedef struct {
 	uint8_t keypad_matrix[8];
 } nc1020_states_t;
 
-static char nc1020_dir[255];
 static char rom_file_path[255];
 static char nor_file_path[255];
 static char state_file_path[255];
@@ -98,23 +97,23 @@ static uint8_t* bbs_pages[0x10];
 static uint8_t* memmap[8];
 static nc1020_states_t nc1020_states;
 
-static uint8_t* ram_buff = nc1020_states.ram;
-static uint8_t* stack = ram_buff + 0x100;
-static uint8_t* ram_io = ram_buff;
-static uint8_t* ram_40 = ram_buff + 0x40;
-static uint8_t* ram_page0 = ram_buff;
-static uint8_t* ram_page1 = ram_buff + 0x2000;
-static uint8_t* ram_page2 = ram_buff + 0x4000;
-static uint8_t* ram_page3 = ram_buff + 0x6000;
+static uint8_t* ram_buff;
+static uint8_t* stack;
+static uint8_t* ram_io;
+static uint8_t* ram_40;
+static uint8_t* ram_page0;
+static uint8_t* ram_page1;
+static uint8_t* ram_page2;
+static uint8_t* ram_page3;
 
-static uint8_t* clock_buff = nc1020_states.clock_data;
+static uint8_t* clock_buff;
 
-static uint8_t* jg_wav_buff = nc1020_states.jg_wav_data;
+static uint8_t* jg_wav_buff;
 
-static uint8_t* bak_40 = nc1020_states.bak_40;
-static uint8_t* fp_buff = nc1020_states.fp_buff;
+static uint8_t* bak_40;
+static uint8_t* fp_buff;
 
-static uint8_t* keypad_matrix = nc1020_states.keypad_matrix;
+static uint8_t* keypad_matrix;
 
 static io_read_func_t io_read[0x40];
 static io_write_func_t io_write[0x40];
@@ -431,16 +430,13 @@ void SaveNor(){
 	fclose(file);
 }
 
-inline uint8_t & Peek(uint8_t addr) {
-	return ram_buff[addr];
-}
-inline uint8_t & Peek(uint16_t addr) {
+uint8_t Peek(uint16_t addr) {
 	return memmap[addr / 0x2000][addr % 0x2000];
 }
-inline uint16_t PeekW(uint16_t addr) {
+uint16_t PeekW(uint16_t addr) {
 	return Peek(addr) | (Peek((uint16_t) (addr + 1)) << 8);
 }
-inline uint8_t Load(uint16_t addr) {
+uint8_t Load(uint16_t addr) {
 	if (addr < IO_LIMIT) {
 		return io_read[addr](addr);
 	}
@@ -456,13 +452,14 @@ inline uint8_t Load(uint16_t addr) {
 	}
 	return Peek(addr);
 }
-inline void Store(uint16_t addr, uint8_t value) {
+
+void Store(uint16_t addr, uint8_t value) {
 	if (addr < IO_LIMIT) {
 		io_write[addr](addr, value);
 		return;
 	}
 	if (addr < 0x4000) {
-		Peek(addr) = value;
+        memmap[addr / 0x2000][addr % 0x2000] = value;
 		return;
 	}
 	uint8_t* page = memmap[addr >> 13];
@@ -580,6 +577,20 @@ void Initialize(const char* path) {
     snprintf(rom_file_path, 255, "%s/%s", path, ROM_FILE_NAME);
     snprintf(nor_file_path, 255, "%s/%s", path, NOR_FILE_NAME);
     snprintf(state_file_path, 255, "%s/%s", path, STATE_FILE_NAME);
+
+    ram_buff = nc1020_states.ram;
+    stack = ram_buff + 0x100;
+    ram_io = ram_buff;
+    ram_40 = ram_buff + 0x40;
+    ram_page0 = ram_buff;
+    ram_page1 = ram_buff + 0x2000;
+    ram_page2 = ram_buff + 0x4000;
+    ram_page3 = ram_buff + 0x6000;
+    clock_buff = nc1020_states.clock_data;
+    jg_wav_buff = nc1020_states.jg_wav_data;
+    bak_40 = nc1020_states.bak_40;
+    fp_buff = nc1020_states.fp_buff;
+    keypad_matrix = nc1020_states.keypad_matrix;
 
 	for (size_t i=0; i<0x100; i++) {
 		rom_volume0[i] = rom_buff + (0x8000 * i);
