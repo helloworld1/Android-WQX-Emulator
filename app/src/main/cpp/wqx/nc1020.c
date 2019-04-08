@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 // cpu cycles per second (cpu freq).
 const size_t CYCLES_SECOND = 5120000;
@@ -620,21 +621,6 @@ void Initialize(const char* path) {
 	io_write[0x3F] = Write3F;
 
 	LoadRom();
-//#ifdef DEBUG
-//	FILE* file = fopen((nc1020_dir + "/wqxsimlogs.bin").c_str(), "rb");
-//	fseek(file, 0L, SEEK_END);
-//	size_t file_size = ftell(file);
-//	size_t insts_count = (file_size - 8) / 8;
-//	debug_logs.insts_count = insts_count;
-//	debug_logs.logs = (log_rec_t*)malloc(insts_count * 8);
-//	fseek(file, 0L, SEEK_SET);
-//	fread(&debug_logs.insts_start, 4, 1, file);
-//	fseek(file, 4L, SEEK_SET);
-//	fread(&debug_logs.peek_addr, 4, 1, file);
-//	fseek(file, 8L, SEEK_SET);
-//	fread(debug_logs.logs, 8, insts_count, file);
-//	fclose(file);
-//#endif
 }
 
 void ResetStates(){
@@ -673,11 +659,6 @@ void ResetStates(){
 	nc1020_states.cpu.reg_pc = PeekW(RESET_VEC);
 	nc1020_states.timer0_cycles = CYCLES_TIMER0;
 	nc1020_states.timer1_cycles = CYCLES_TIMER1;
-
-//#ifdef DEBUG
-//	executed_insts = 0;
-//	debug_done = false;
-//#endif
 }
 
 void Reset() {
@@ -2474,32 +2455,6 @@ void RunTimeSlice(size_t time_slice, bool speed_up) {
 		}
 			break;
 		}
-//#ifdef DEBUG
-//		if (should_irq && !(reg_ps & 0x04)) {
-//			should_irq = false;
-//			stack[reg_sp --] = reg_pc >> 8;
-//			stack[reg_sp --] = reg_pc & 0xFF;
-//			reg_ps &= 0xEF;
-//			stack[reg_sp --] = reg_ps;
-//			reg_pc = PeekW(IRQ_VEC);
-//			reg_ps |= 0x04;
-//			cycles += 7;
-//		}
-//		executed_insts ++;
-//		if (executed_insts % 6000 == 0) {
-//			timer1_cycles += CYCLES_TIMER1;
-//			clock_buff[4] ++;
-//			if (should_wake_up) {
-//				should_wake_up = false;
-//				ram_io[0x01] |= 0x01;
-//				ram_io[0x02] |= 0x01;
-//				reg_pc = PeekW(RESET_VEC);
-//			} else {
-//				ram_io[0x01] |= 0x08;
-//				should_irq = true;
-//			}
-//		}
-//#else
 		if (cycles >= nc1020_states.timer0_cycles) {
 			nc1020_states.timer0_cycles += CYCLES_TIMER0;
 			nc1020_states.timer0_toggle = !nc1020_states.timer0_toggle;
@@ -2541,7 +2496,6 @@ void RunTimeSlice(size_t time_slice, bool speed_up) {
 				nc1020_states.should_irq = true;
 			}
 		}
-//#endif
 	}
 
 	cycles -= end_cycles;

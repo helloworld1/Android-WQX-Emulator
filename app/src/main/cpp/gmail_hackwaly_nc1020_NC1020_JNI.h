@@ -4,9 +4,6 @@
 
 #ifndef _Included_gmail_hackwaly_nc1020_NC1020_JNI
 #define _Included_gmail_hackwaly_nc1020_NC1020_JNI
-#ifdef __cplusplus
-extern "C" {
-#endif
 /*
  * Class:     gmail_hackwaly_nc1020_NC1020_JNI
  * Method:    Initialize
@@ -62,8 +59,4 @@ JNIEXPORT void JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_RunTimeSlice
  */
 JNIEXPORT jboolean JNICALL Java_gmail_hackwaly_nc1020_NC1020_1JNI_CopyLcdBuffer
   (JNIEnv *, jobject, jbyteArray);
-
-#ifdef __cplusplus
-}
-#endif
 #endif
