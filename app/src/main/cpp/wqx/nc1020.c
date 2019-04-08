@@ -31,9 +31,11 @@ const uint16_t IRQ_VEC = 0xFFFE;
 
 const size_t VERSION = 0x06;
 
-const char *ROM_FILE_NAME = "obj_lu.bin";
-const char *NOR_FILE_NAME = "nc1020.fls";
-const char *STATE_FILE_NAME = "nc1020.sts";
+static const char *ROM_FILE_NAME = "obj_lu.bin";
+static const char *NOR_FILE_NAME = "nc1020.fls";
+static const char *STATE_FILE_NAME = "nc1020.sts";
+
+static const int MAX_FILE_NAME_LENGTH = 255;
 
 typedef struct {
 	uint16_t reg_pc;
@@ -81,9 +83,9 @@ typedef struct {
 	uint8_t keypad_matrix[8];
 } nc1020_states_t;
 
-static char rom_file_path[255];
-static char nor_file_path[255];
-static char state_file_path[255];
+static char rom_file_path[MAX_FILE_NAME_LENGTH];
+static char nor_file_path[MAX_FILE_NAME_LENGTH];
+static char state_file_path[MAX_FILE_NAME_LENGTH];
 
 static uint8_t rom_buff[ROM_SIZE];
 static uint8_t nor_buff[NOR_SIZE];
@@ -405,7 +407,7 @@ void ProcessBinary(uint8_t* dest, uint8_t* src, size_t size){
 
 void LoadRom(){
 	uint8_t* temp_buff = (uint8_t*)malloc(ROM_SIZE);
-	FILE* file = fopen(rom_file_path, "rb");
+	FILE* file = fopen(rom_file_path, "rbe");
 	fread(temp_buff, 1, ROM_SIZE, file);
 	ProcessBinary(rom_buff, temp_buff, ROM_SIZE);
 	free(temp_buff);
@@ -414,7 +416,7 @@ void LoadRom(){
 
 void LoadNor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
-	FILE* file = fopen(nor_file_path, "rb");
+	FILE* file = fopen(nor_file_path, "rbe");
 	fread(temp_buff, 1, NOR_SIZE, file);
 	ProcessBinary(nor_buff, temp_buff, NOR_SIZE);
 	free(temp_buff);
@@ -423,7 +425,7 @@ void LoadNor(){
 
 void SaveNor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
-	FILE* file = fopen(nor_file_path, "wb");
+	FILE* file = fopen(nor_file_path, "wbe");
 	ProcessBinary(temp_buff, nor_buff, NOR_SIZE);
 	fwrite(temp_buff, 1, NOR_SIZE, file);
 	fflush(file);
@@ -434,6 +436,7 @@ void SaveNor(){
 uint8_t Peek(uint16_t addr) {
 	return memmap[addr / 0x2000][addr % 0x2000];
 }
+
 uint16_t PeekW(uint16_t addr) {
 	return Peek(addr) | (Peek((uint16_t) (addr + 1)) << 8);
 }
@@ -575,9 +578,9 @@ void Store(uint16_t addr, uint8_t value) {
 }
 
 void Initialize(const char* path) {
-    snprintf(rom_file_path, 255, "%s/%s", path, ROM_FILE_NAME);
-    snprintf(nor_file_path, 255, "%s/%s", path, NOR_FILE_NAME);
-    snprintf(state_file_path, 255, "%s/%s", path, STATE_FILE_NAME);
+    snprintf(rom_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, ROM_FILE_NAME);
+    snprintf(nor_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, NOR_FILE_NAME);
+    snprintf(state_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, STATE_FILE_NAME);
 
     ram_buff = nc1020_states.ram;
     stack = ram_buff + 0x100;
