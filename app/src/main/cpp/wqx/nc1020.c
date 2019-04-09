@@ -22,8 +22,8 @@ static const unsigned long NOR_SIZE = 0x8000 * 0x20;
 
 static const uint16_t IO_LIMIT = 0x40;
 #define IO_API
-typedef uint8_t (IO_API *io_read_func_t)(uint16_t);
-typedef void (IO_API *io_write_func_t)(uint16_t, uint8_t);
+typedef uint8_t (IO_API *io_read_func_t)(uint8_t);
+typedef void (IO_API *io_write_func_t)(uint8_t, uint8_t);
 
 const uint16_t NMI_VEC = 0xFFFA;
 const uint16_t RESET_VEC = 0xFFFC;
@@ -441,7 +441,7 @@ uint16_t PeekW(uint16_t addr) {
 }
 uint8_t Load(uint16_t addr) {
 	if (addr < IO_LIMIT) {
-		return io_read[addr](addr);
+		return io_read[addr]((uint8_t) addr);
 	}
 	if (((nc1020_states.fp_step == 4 && nc1020_states.fp_type == 2) ||
 		(nc1020_states.fp_step == 6 && nc1020_states.fp_type == 3)) &&
@@ -458,7 +458,7 @@ uint8_t Load(uint16_t addr) {
 
 void Store(uint16_t addr, uint8_t value) {
 	if (addr < IO_LIMIT) {
-		io_write[addr](addr, value);
+		io_write[addr]((uint8_t) addr, value);
 		return;
 	}
 	if (addr < 0x4000) {
@@ -497,14 +497,15 @@ void Store(uint16_t addr, uint8_t value) {
         }
     } else if (nc1020_states.fp_step == 2) {
         if (addr == 0x5555) {
-        	switch (value) {
-        	case 0x90: nc1020_states.fp_type = 1; break;
-        	case 0xA0: nc1020_states.fp_type = 2; break;
-        	case 0x80: nc1020_states.fp_type = 3; break;
-        	case 0xA8: nc1020_states.fp_type = 4; break;
-        	case 0x88: nc1020_states.fp_type = 5; break;
-        	case 0x78: nc1020_states.fp_type = 6; break;
-        	}
+            switch (value) {
+                case 0x90: nc1020_states.fp_type = 1; break;
+                case 0xA0: nc1020_states.fp_type = 2; break;
+                case 0x80: nc1020_states.fp_type = 3; break;
+                case 0xA8: nc1020_states.fp_type = 4; break;
+                case 0x88: nc1020_states.fp_type = 5; break;
+                case 0x78: nc1020_states.fp_type = 6; break;
+                default:break;
+            }
             if (nc1020_states.fp_type) {
                 if (nc1020_states.fp_type == 1) {
                     nc1020_states.fp_bank_idx = bank_idx;
@@ -528,7 +529,7 @@ void Store(uint16_t addr, uint8_t value) {
             nc1020_states.fp_step = 4;
             return;
         } else if (nc1020_states.fp_type == 4) {
-            fp_buff[addr & 0xFF] &= value;
+            fp_buff[addr & 0xFFu] &= value;
             nc1020_states.fp_step = 4;
             return;
         } else if (nc1020_states.fp_type == 3 || nc1020_states.fp_type == 5) {
@@ -670,7 +671,7 @@ void Reset() {
 
 void LoadStates(){
 	ResetStates();
-	FILE* file = fopen(state_file_path, "rb");
+	FILE* file = fopen(state_file_path, "rbe");
 	if (file == NULL) {
 		return;
 	}
@@ -683,7 +684,7 @@ void LoadStates(){
 }
 
 void SaveStates(){
-	FILE* file = fopen(state_file_path, "wb");
+	FILE* file = fopen(state_file_path, "wbe");
 	fwrite(&nc1020_states, 1, sizeof(nc1020_states), file);
 	fflush(file);
 	fclose(file);
@@ -700,9 +701,9 @@ void SaveNC1020(){
 }
 
 void SetKey(uint8_t key_id, bool down_or_up){
-	uint8_t row = key_id % 8;
-	uint8_t col = key_id / 8;
-	uint8_t bits = 1 << col;
+	uint8_t row = (uint8_t) (key_id % 8u);
+	uint8_t col = (uint8_t) (key_id / 8u);
+	uint8_t bits = (uint8_t) (1u << col);
 	if (key_id == 0x0F) {
 		bits = 0xFE;
 	}
@@ -715,16 +716,17 @@ void SetKey(uint8_t key_id, bool down_or_up){
 	if (down_or_up) {
 		if (nc1020_states.slept) {
 			if (key_id >= 0x08 && key_id <= 0x0F && key_id != 0x0E) {
-				switch (key_id) {
-				case 0x08: nc1020_states.wake_up_flags = 0x00; break;
-				case 0x09: nc1020_states.wake_up_flags = 0x0A; break;
-				case 0x0A: nc1020_states.wake_up_flags = 0x08; break;
-				case 0x0B: nc1020_states.wake_up_flags = 0x06; break;
-				case 0x0C: nc1020_states.wake_up_flags = 0x04; break;
-				case 0x0D: nc1020_states.wake_up_flags = 0x02; break;
-				case 0x0E: nc1020_states.wake_up_flags = 0x0C; break;
-				case 0x0F: nc1020_states.wake_up_flags = 0x00; break;
-				}
+                switch (key_id) {
+                    case 0x08: nc1020_states.wake_up_flags = 0x00; break;
+                    case 0x09: nc1020_states.wake_up_flags = 0x0A; break;
+                    case 0x0A: nc1020_states.wake_up_flags = 0x08; break;
+                    case 0x0B: nc1020_states.wake_up_flags = 0x06; break;
+                    case 0x0C: nc1020_states.wake_up_flags = 0x04; break;
+                    case 0x0D: nc1020_states.wake_up_flags = 0x02; break;
+                    case 0x0E: nc1020_states.wake_up_flags = 0x0C; break;
+                    case 0x0F: nc1020_states.wake_up_flags = 0x00; break;
+                    default:break;
+                }
 				nc1020_states.should_wake_up = true;
 				nc1020_states.pending_wake_up = true;
 				nc1020_states.slept = false;
@@ -757,20 +759,20 @@ void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 		switch (Peek(reg_pc++)) {
 		case 0x00: {
 			reg_pc++;
-			stack[reg_sp--] = reg_pc >> 8;
-			stack[reg_sp--] = reg_pc & 0xFF;
-			reg_ps |= 0x10;
+			stack[reg_sp--] = (uint8_t) (reg_pc >> 8u);
+			stack[reg_sp--] = (uint8_t) (reg_pc & 0xFFu);
+			reg_ps |= 0x10u;
 			stack[reg_sp--] = reg_ps;
-			reg_ps |= 0x04;
+			reg_ps |= 0x04u;
 			reg_pc = PeekW(IRQ_VEC);
 			cycles += 7;
 		}
 			break;
 		case 0x01: {
-			uint16_t addr = PeekW((Peek(reg_pc++) + reg_x) & 0xFF);
+			uint16_t addr = PeekW((uint16_t) ((Peek(reg_pc++) + reg_x) & 0xFFu));
 			reg_a |= Load(addr);
-			reg_ps &= 0x7D;
-			reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
+			reg_ps &= 0x7Du;
+			reg_ps |= (reg_a & 0x80u) | (!reg_a << 1u);
 			cycles += 6;
 		}
 			break;
@@ -786,18 +788,18 @@ void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 		case 0x05: {
 			uint16_t addr = Peek(reg_pc++);
 			reg_a |= Load(addr);
-			reg_ps &= 0x7D;
-			reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
+			reg_ps &= 0x7Du;
+			reg_ps |= (reg_a & 0x80u) | (!reg_a << 1u);
 			cycles += 3;
 		}
 			break;
 		case 0x06: {
 			uint16_t addr = Peek(reg_pc++);
 			uint8_t tmp1 = Load(addr);
-			reg_ps &= 0x7C;
-			reg_ps |= (tmp1 >> 7);
-			tmp1 <<= 1;
-			reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
+			reg_ps &= 0x7Cu;
+			reg_ps |= (tmp1 >> 7u);
+			tmp1 <<= 1u;
+			reg_ps |= (tmp1 & 0x80u) | (!tmp1 << 1u);
 			Store(addr, tmp1);
 			cycles += 5;
 		}
@@ -813,16 +815,16 @@ void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 		case 0x09: {
 			uint16_t addr = reg_pc++;
 			reg_a |= Load(addr);
-			reg_ps &= 0x7D;
-			reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
+			reg_ps &= 0x7Du;
+			reg_ps |= (reg_a & 0x80u) | (!reg_a << 1u);
 			cycles += 2;
 		}
 			break;
 		case 0x0A: {
-			reg_ps &= 0x7C;
-			reg_ps |= reg_a >> 7;
-			reg_a <<= 1;
-			reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
+			reg_ps &= 0x7Cu;
+			reg_ps |= reg_a >> 7u;
+			reg_a <<= 1u;
+			reg_ps |= (reg_a & 0x80u) | (!reg_a << 1u);
 			cycles += 2;
 		}
 			break;
