@@ -52,7 +52,7 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
         public void run() {
             long interval = 0L;
             while (isRunning) {
-                long currentTime = System.currentTimeMillis();
+                long startTime = System.currentTimeMillis();
                 NC1020JNI.RunTimeSlice((int)interval, speedUp);
 
                 if (!NC1020JNI.CopyLcdBuffer(lcdBuffer)) {
@@ -72,8 +72,7 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
                         lcdBufferEx[y * 160] = 0;
                     }
                 }
-                long elapsed = System.currentTimeMillis() - currentTime;
-                System.out.println("RRRRRRRRRR elapsed: " + elapsed);
+                long elapsed = System.currentTimeMillis() - startTime;
                 if (elapsed < FRAME_INTERVAL) {
                     try {
                         Thread.sleep(FRAME_INTERVAL - elapsed);
@@ -275,9 +274,7 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void doFrame(long frameTimeNanos) {
-        long now = System.currentTimeMillis();
         updateLcd();
-        System.out.println("RRRRRRRRRR updateLCD: " + (System.currentTimeMillis() - now));
         Choreographer.getInstance().postFrameCallback(this);
     }
 }
