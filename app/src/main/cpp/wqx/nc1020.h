@@ -8,7 +8,7 @@
 extern void Initialize(const char*);
 extern void Reset();
 extern void SetKey(uint8_t, bool);
-extern void RunTimeSlice(size_t, bool);
+extern void RunTimeSlice(unsigned long, bool);
 extern bool CopyLcdBuffer(uint8_t*);
 extern void LoadNC1020();
 extern void SaveNC1020();

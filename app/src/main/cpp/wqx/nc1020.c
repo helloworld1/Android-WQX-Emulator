@@ -5,31 +5,31 @@
 #include <stdbool.h>
 
 // cpu cycles per second (cpu freq).
-const size_t CYCLES_SECOND = 5120000;
-const size_t TIMER0_FREQ = 2;
-const size_t TIMER1_FREQ = 0x100;
+const unsigned long CYCLES_SECOND = 5120000;
+const unsigned long TIMER0_FREQ = 2;
+const unsigned long TIMER1_FREQ = 0x100;
 // cpu cycles per timer0 period (1/2 s).
-const size_t CYCLES_TIMER0 = CYCLES_SECOND / TIMER0_FREQ;
+const unsigned long CYCLES_TIMER0 = CYCLES_SECOND / TIMER0_FREQ;
 // cpu cycles per timer1 period (1/256 s).
-const size_t CYCLES_TIMER1 = CYCLES_SECOND / TIMER1_FREQ;
+const unsigned long CYCLES_TIMER1 = CYCLES_SECOND / TIMER1_FREQ;
 // speed up
-const size_t CYCLES_TIMER1_SPEED_UP = CYCLES_SECOND / TIMER1_FREQ / 20;
+const unsigned long CYCLES_TIMER1_SPEED_UP = CYCLES_SECOND / TIMER1_FREQ / 20;
 // cpu cycles per ms (1/1000 s).
-const size_t CYCLES_MS = CYCLES_SECOND / 1000;
+const unsigned long CYCLES_MS = CYCLES_SECOND / 1000;
 
-static const size_t ROM_SIZE = 0x8000 * 0x300;
-static const size_t NOR_SIZE = 0x8000 * 0x20;
+static const unsigned long ROM_SIZE = 0x8000 * 0x300;
+static const unsigned long NOR_SIZE = 0x8000 * 0x20;
 
 static const uint16_t IO_LIMIT = 0x40;
 #define IO_API
-typedef uint8_t (IO_API *io_read_func_t)(uint8_t);
-typedef void (IO_API *io_write_func_t)(uint8_t, uint8_t);
+typedef uint8_t (IO_API *io_read_func_t)(uint16_t);
+typedef void (IO_API *io_write_func_t)(uint16_t, uint8_t);
 
 const uint16_t NMI_VEC = 0xFFFA;
 const uint16_t RESET_VEC = 0xFFFC;
 const uint16_t IRQ_VEC = 0xFFFE;
 
-const size_t VERSION = 0x06;
+const unsigned long VERSION = 0x06;
 
 static const char *ROM_FILE_NAME = "obj_lu.bin";
 static const char *NOR_FILE_NAME = "nc1020.fls";
@@ -47,7 +47,7 @@ typedef struct {
 } cpu_states_t;
 
 typedef struct {
-	size_t version;
+	unsigned long version;
 	cpu_states_t cpu;
 	uint8_t ram[0x8000];
 
@@ -74,12 +74,12 @@ typedef struct {
 	uint8_t wake_up_flags;
 
 	bool timer0_toggle;
-	size_t cycles;
-	size_t timer0_cycles;
-	size_t timer1_cycles;
+	unsigned long cycles;
+	unsigned long timer0_cycles;
+	unsigned long timer1_cycles;
 	bool should_irq;
 
-	size_t lcd_addr;
+	unsigned long lcd_addr;
 	uint8_t keypad_matrix[8];
 } nc1020_states_t;
 
@@ -126,9 +126,9 @@ uint8_t* GetBank(uint8_t bank_idx){
     if (bank_idx < 0x20) {
     	return nor_banks[bank_idx];
     } else if (bank_idx >= 0x80) {
-        if (volume_idx & 0x01) {
+        if (volume_idx & 0x01u) {
         	return rom_volume1[bank_idx];
-        } else if (volume_idx & 0x02) {
+        } else if (volume_idx & 0x02u) {
         	return rom_volume2[bank_idx];
         } else {
         	return rom_volume0[bank_idx];
@@ -147,9 +147,9 @@ void SwitchBank(){
 }
 
 uint8_t** GetVolumm(uint8_t volume_idx){
-	if ((volume_idx & 0x03) == 0x01) {
+	if ((volume_idx & 0x03u) == 0x01) {
 		return rom_volume1;
-	} else if ((volume_idx & 0x03) == 0x03) {
+	} else if ((volume_idx & 0x03u) == 0x03) {
 		return rom_volume2;
 	} else {
 		return rom_volume0;
@@ -168,8 +168,8 @@ void SwitchVolume(){
     bbs_pages[1] = ram_page3;
     memmap[7] = volume[0] + 0x2000;
     uint8_t roa_bbs = ram_io[0x0A];
-    memmap[1] = (roa_bbs & 0x04 ? ram_page2 : ram_page1);
-    memmap[6] = bbs_pages[roa_bbs & 0x0F];
+    memmap[1] = (roa_bbs & 0x04u ? ram_page2 : ram_page1);
+    memmap[6] = bbs_pages[roa_bbs & 0x0Fu];
     SwitchBank();
 }
 
@@ -181,7 +181,7 @@ uint8_t* GetPtr40(uint8_t index){
     if (index < 4) {
         return ram_io;
     } else {
-        return ram_buff + ((index) << 6);
+        return ram_buff + ((index) << 6u);
     }
 }
 
@@ -194,15 +194,15 @@ uint8_t IO_API Read06(uint8_t addr){
 }
 
 uint8_t IO_API Read3B(uint8_t addr){
-    if (!(ram_io[0x3D] & 0x03)) {
-        return clock_buff[0x3B] & 0xFE;
+    if (!(ram_io[0x3D] & 0x03u)) {
+        return (uint8_t) (clock_buff[0x3Bu] & 0xFEu);
     }
     return ram_io[addr];
 }
 
 uint8_t IO_API Read3F(uint8_t addr){
     uint8_t idx = ram_io[0x3E];
-    return idx < 80 ? clock_buff[idx] : 0;
+    return (uint8_t) (idx < 80 ? clock_buff[idx] : 0);
 }
 
 void IO_API WriteXX(uint8_t addr, uint8_t value){
@@ -222,22 +222,22 @@ void IO_API Write00(uint8_t addr, uint8_t value){
 void IO_API Write05(uint8_t addr, uint8_t value){
 	uint8_t old_value = ram_io[addr];
 	ram_io[addr] = value;
-	if ((old_value ^ value) & 0x08) {
-		nc1020_states.slept = !(value & 0x08);
+	if ((old_value ^ value) & 0x08u) {
+		nc1020_states.slept = !(value & 0x08u);
 	}
 }
 
 void IO_API Write06(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     if (!nc1020_states.lcd_addr) {
-    	nc1020_states.lcd_addr = ((ram_io[0x0C] & 0x03) << 12) | (value << 4);
+    	nc1020_states.lcd_addr = ((ram_io[0x0C] & 0x03u) << 12u) | (value << 4u);
     }
-    ram_io[0x09] &= 0xFE;
+    ram_io[0x09] &= 0xFEu;
 }
 
 void IO_API Write08(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
-    ram_io[0x0B] &= 0xFE;
+    ram_io[0x0B] &= 0xFEu;
 }
 
 // keypad matrix.
@@ -253,25 +253,24 @@ void IO_API Write09(uint8_t addr, uint8_t value){
     case 0x40: ram_io[0x08] = keypad_matrix[6]; break;
     case 0x80: ram_io[0x08] = keypad_matrix[7]; break;
     case 0:
-        ram_io[0x0B] |= 1;
+        ram_io[0x0B] |= 1u;
         if (keypad_matrix[7] == 0xFE) {
-            ram_io[0x0B] &= 0xFE;
+            ram_io[0x0B] &= 0xFEu;
         }
         break;
     case 0x7F:
-        if (ram_io[0x15] == 0x7F) {
-            ram_io[0x08] = (
-                keypad_matrix[0] |
-                keypad_matrix[1] |
-                keypad_matrix[2] |
-                keypad_matrix[3] |
-                keypad_matrix[4] |
-                keypad_matrix[5] |
-                keypad_matrix[6] |
-                keypad_matrix[7]
-            );
+        if (ram_io[0x15] == 0x7Fu) {
+            ram_io[0x08] = keypad_matrix[0] |
+                           keypad_matrix[1] |
+                           keypad_matrix[2] |
+                           keypad_matrix[3] |
+                           keypad_matrix[4] |
+                           keypad_matrix[5] |
+                           keypad_matrix[6] |
+                           keypad_matrix[7];
         }
         break;
+        default:break;
     }
 }
 
@@ -280,7 +279,7 @@ void IO_API Write0A(uint8_t addr, uint8_t value){
     uint8_t old_value = ram_io[addr];
     ram_io[addr] = value;
     if (value != old_value) {
-        memmap[6] = bbs_pages[value & 0x0F];
+        memmap[6] = bbs_pages[value & 0x0Fu];
     }
 }
 
@@ -297,8 +296,8 @@ void IO_API Write0D(uint8_t addr, uint8_t value){
 void IO_API Write0F(uint8_t addr, uint8_t value){
 	uint8_t old_value = ram_io[addr];
     ram_io[addr] = value;
-    old_value &= 0x07;
-    value &= 0x07;
+    old_value &= 0x07u;
+    value &= 0x07u;
     if (value != old_value) {
         uint8_t* ptr_new = GetPtr40(value);
         if (old_value) {
@@ -352,16 +351,16 @@ void IO_API Write3F(uint8_t addr, uint8_t value){
     if (idx >= 0x07) {
         if (idx == 0x0B) {
             ram_io[0x3D] = 0xF8;
-            nc1020_states.clock_flags |= value & 0x07;
-            clock_buff[0x0B] = value ^ ((clock_buff[0x0B] ^ value) & 0x7F);
+            nc1020_states.clock_flags |= value & 0x07u;
+            clock_buff[0x0B] = (uint8_t) (value ^ ((clock_buff[0x0B] ^ value) & 0x7Fu));
         } else if (idx == 0x0A) {
-            nc1020_states.clock_flags |= value & 0x07;
+            nc1020_states.clock_flags |= value & 0x07u;
             clock_buff[0x0A] = value;
         } else {
             clock_buff[idx % 80] = value;
         }
     } else {
-        if (!(clock_buff[0x0B] & 0x80) && idx < 80) {
+        if (!(clock_buff[0x0B] & 0x80u) && idx < 80u) {
             clock_buff[idx] = value;
         }
     }
@@ -373,7 +372,7 @@ void AdjustTime(){
         if (++ clock_buff[1] >= 60) {
             clock_buff[1] = 0;
             if (++ clock_buff[2] >= 24) {
-                clock_buff[2] &= 0xC0;
+                clock_buff[2] &= 0xC0u;
                 ++ clock_buff[3];
             }
         }
@@ -381,14 +380,14 @@ void AdjustTime(){
 }
 
 bool IsCountDown(){
-    if (!(clock_buff[10] & 0x02) ||
-        !(nc1020_states.clock_flags & 0x02)) {
+    if (!(clock_buff[10] & 0x02u) ||
+        !(nc1020_states.clock_flags & 0x02u)) {
         return false;
     }
     return (
-        ((clock_buff[7] & 0x80) && !(((clock_buff[7] ^ clock_buff[2])) & 0x1F)) ||
-        ((clock_buff[6] & 0x80) && !(((clock_buff[6] ^ clock_buff[1])) & 0x3F)) ||
-        ((clock_buff[5] & 0x80) && !(((clock_buff[5] ^ clock_buff[0])) & 0x3F))
+        ((clock_buff[7] & 0x80u) && !(((clock_buff[7] ^ clock_buff[2])) & 0x1Fu)) ||
+        ((clock_buff[6] & 0x80u) && !(((clock_buff[6] ^ clock_buff[1])) & 0x3Fu)) ||
+        ((clock_buff[5] & 0x80u) && !(((clock_buff[5] ^ clock_buff[0])) & 0x3Fu))
         );
 }
 
@@ -396,8 +395,8 @@ bool IsCountDown(){
  * ProcessBinary
  * encrypt or decrypt wqx's binary file. just flip every bank.
  */
-void ProcessBinary(uint8_t* dest, uint8_t* src, size_t size){
-	size_t offset = 0;
+void ProcessBinary(uint8_t* dest, uint8_t* src, unsigned long size){
+	unsigned long offset = 0;
     while (offset < size) {
         memcpy(dest + offset + 0x4000, src + offset, 0x4000);
         memcpy(dest + offset, src + offset + 0x4000, 0x4000);
@@ -438,7 +437,7 @@ uint8_t Peek(uint16_t addr) {
 }
 
 uint16_t PeekW(uint16_t addr) {
-	return Peek(addr) | (Peek((uint16_t) (addr + 1)) << 8);
+	return Peek(addr) | (Peek((uint16_t) (addr + 1u)) << 8u);
 }
 uint8_t Load(uint16_t addr) {
 	if (addr < IO_LIMIT) {
@@ -466,9 +465,9 @@ void Store(uint16_t addr, uint8_t value) {
         memmap[addr / 0x2000][addr % 0x2000] = value;
 		return;
 	}
-	uint8_t* page = memmap[addr >> 13];
+	uint8_t* page = memmap[addr >> 13u];
 	if (page == ram_page2 || page == ram_page3) {
-		page[addr & 0x1FFF] = value;
+		page[addr & 0x1FFFu] = value;
 		return;
 	}
 	if (addr >= 0xE000) {
@@ -547,7 +546,7 @@ void Store(uint16_t addr, uint8_t value) {
         }
     } else if (nc1020_states.fp_step == 5) {
         if (addr == 0x5555 && value == 0x10) {
-        	for (size_t i=0; i<0x20; i++) {
+        	for (unsigned long i=0; i<0x20; i++) {
                 memset(nor_banks[i], 0xFF, 0x8000);
             }
             if (nc1020_states.fp_type == 5) {
@@ -596,15 +595,15 @@ void Initialize(const char* path) {
     fp_buff = nc1020_states.fp_buff;
     keypad_matrix = nc1020_states.keypad_matrix;
 
-	for (size_t i=0; i<0x100; i++) {
+	for (unsigned long i=0; i<0x100; i++) {
 		rom_volume0[i] = rom_buff + (0x8000 * i);
 		rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
 		rom_volume1[i] = rom_buff + (0x8000 * (0x200 + i));
 	}
-	for (size_t i=0; i<0x20; i++) {
+	for (unsigned long i=0; i<0x20; i++) {
 		nor_banks[i] = nor_buff + (0x8000 * i);
 	}
-	for (size_t i=0; i<0x40; i++) {
+	for (unsigned long i=0; i<0x40; i++) {
 		io_read[i] = ReadXX;
 		io_write[i] = WriteXX;
 	}
@@ -744,9 +743,9 @@ bool CopyLcdBuffer(uint8_t* buffer){
 	return true;
 }
 
-void RunTimeSlice(size_t time_slice, bool speed_up) {
-	size_t end_cycles = time_slice * CYCLES_MS;
-	size_t cycles = nc1020_states.cycles;
+void RunTimeSlice(unsigned long time_slice, bool speed_up) {
+	unsigned long end_cycles = time_slice * CYCLES_MS;
+	unsigned long cycles = nc1020_states.cycles;
 	uint16_t reg_pc = nc1020_states.cpu.reg_pc;
 	uint8_t reg_a = nc1020_states.cpu.reg_a;
 	uint8_t reg_ps = nc1020_states.cpu.reg_ps;
@@ -2231,8 +2230,8 @@ void RunTimeSlice(size_t time_slice, bool speed_up) {
 		case 0xE1: {
 			uint16_t addr = PeekW((Peek(reg_pc++) + reg_x) & 0xFF);
 			uint8_t tmp1 = Load(addr);
-			int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
-			uint8_t tmp3 = tmp2 & 0xFF;
+			int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01u) - 1u;
+			uint8_t tmp3 = tmp2 & 0xFFu;
 			reg_ps &= 0x3C;
 			reg_ps |= (tmp3 & 0x80) | (!tmp3 << 1) | (tmp2 >= 0)
 					| (((reg_a ^ tmp1) & (reg_a ^ tmp3) & 0x80) >> 1);
