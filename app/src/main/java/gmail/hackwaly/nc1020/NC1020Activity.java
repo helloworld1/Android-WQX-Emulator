@@ -7,6 +7,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import android.graphics.Point;
 import android.os.Bundle;
@@ -17,6 +19,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.view.Choreographer;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -27,7 +30,7 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 
-public class NC1020Activity extends Activity implements SurfaceHolder.Callback, OnKeyListener {
+public class NC1020Activity extends Activity implements SurfaceHolder.Callback, OnKeyListener, Choreographer.FrameCallback {
     private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
 
@@ -39,25 +42,50 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
     private SharedPreferences prefs;
     private boolean speedUp;
     private Handler handler = new Handler();
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private boolean isRunning = true;
 
-    float displayScale = 1f;
+    private float displayScale = 1f;
 
-    private final Runnable frameRunnable = new Runnable(){
-
+    private Runnable runnable = new Runnable() {
         @Override
         public void run() {
-            NC1020JNI.RunTimeSlice(FRAME_INTERVAL, speedUp);
-            handler.postDelayed(frameRunnable, FRAME_INTERVAL);
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    updateLcd();
+            long interval = 0L;
+            while (isRunning) {
+                long currentTime = System.currentTimeMillis();
+                NC1020JNI.RunTimeSlice((int)interval, speedUp);
 
+                if (!NC1020JNI.CopyLcdBuffer(lcdBuffer)) {
+                    return;
                 }
-            });
+                synchronized (lcdBufferEx) {
+                    for (int y = 0; y < 80; y++) {
+                        for (int j = 0; j < 20; j++) {
+                            byte p = lcdBuffer[20 * y + j];
+                            for (int k = 0; k < 8; k++) {
+                                lcdBufferEx[y * 160 + j * 8 + k] = (byte) ((p & (1 << (7 - k))) != 0 ? 0xFF
+                                        : 0x00);
+                            }
+                        }
+                    }
+                    for (int y = 0; y < 80; y++) {
+                        lcdBufferEx[y * 160] = 0;
+                    }
+                }
+                long elapsed = System.currentTimeMillis() - currentTime;
+                System.out.println("RRRRRRRRRR elapsed: " + elapsed);
+                if (elapsed < FRAME_INTERVAL) {
+                    try {
+                        Thread.sleep(FRAME_INTERVAL - elapsed);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                interval = Math.max(elapsed, FRAME_INTERVAL);
+            }
         }
-
     };
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -89,19 +117,20 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
         String dir = initDataFolder();
         NC1020JNI.Initialize(dir);
         NC1020JNI.Load();
-
     }
 
     @Override
     public void onResume() {
-        handler.post(frameRunnable);
-
         super.onResume();
+        Choreographer.getInstance().postFrameCallback(this);
+        isRunning = true;
+        executorService.submit(runnable);
     }
 
     @Override
     public void onPause() {
-        handler.removeCallbacks(frameRunnable);
+        isRunning = false;
+        Choreographer.getInstance().removeFrameCallback(this);
         super.onPause();
     }
 
@@ -230,27 +259,25 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
     }
 
     private void updateLcd() {
-        if (!NC1020JNI.CopyLcdBuffer(lcdBuffer)) {
+        Canvas lcdCanvas = lcdSurfaceHolder.lockCanvas();
+        if (lcdCanvas == null) {
             return;
         }
-        Canvas lcdCanvas = lcdSurfaceHolder.lockCanvas();
-        for (int y = 0; y < 80; y++) {
-            for (int j = 0; j < 20; j++) {
-                byte p = lcdBuffer[20 * y + j];
-                for (int k = 0; k < 8; k++) {
-                    lcdBufferEx[y * 160 + j * 8 + k] = (byte) ((p & (1 << (7 - k))) != 0 ? 0xFF
-                            : 0x00);
-                }
-            }
+
+        synchronized (lcdBufferEx) {
+            lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx));
         }
-        for (int y = 0; y < 80; y++) {
-            lcdBufferEx[y * 160] = 0;
-        }
-        lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx));
         lcdCanvas.drawColor(0xFF72B056);
         lcdCanvas.drawBitmap(lcdBitmap, lcdMatrix, null);
 
         lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
     }
 
+    @Override
+    public void doFrame(long frameTimeNanos) {
+        long now = System.currentTimeMillis();
+        updateLcd();
+        System.out.println("RRRRRRRRRR updateLCD: " + (System.currentTimeMillis() - now));
+        Choreographer.getInstance().postFrameCallback(this);
+    }
 }
