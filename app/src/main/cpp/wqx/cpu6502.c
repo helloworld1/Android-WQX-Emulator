@@ -38,18 +38,18 @@ void init_6502(uint8_t (*Peek_func)(uint16_t addr),
 /**
  * @return cycles for the execution
  */
-int do_irq(cpu_states_t *cpu_states) {
+unsigned long do_irq(cpu_states_t *cpu_states) {
     uint8_t reg_sp = cpu_states -> reg_sp;
     uint16_t reg_pc = cpu_states -> reg_pc;
     uint8_t reg_ps = cpu_states -> reg_ps;
 
-    if (!(reg_ps & 0x04)) {
-        store_stack(reg_sp--,reg_pc >> 8);
-        store_stack(reg_sp--, reg_pc & 0xFF);
-        reg_ps &= 0xEF;
+    if (!(reg_ps & 0x04u)) {
+        store_stack(reg_sp--, (uint8_t) (reg_pc >> 8u));
+        store_stack(reg_sp--, (uint8_t) (reg_pc & 0xFFu));
+        reg_ps &= 0xEFu;
         store_stack(reg_sp--, reg_ps);
         reg_pc = peek_word(IRQ_VEC);
-        reg_ps |= 0x04;
+        reg_ps |= 0x04u;
 
         cpu_states -> reg_sp = reg_sp;
         cpu_states -> reg_pc = reg_pc;
@@ -63,7 +63,7 @@ int do_irq(cpu_states_t *cpu_states) {
 /**
  * @return cycles for the execution
  */
-int execute_6502(cpu_states_t *cpu_states) {
+unsigned long execute_6502(cpu_states_t *cpu_states) {
     unsigned long cycles = 0;
     uint16_t reg_pc = cpu_states -> reg_pc;
     uint8_t reg_a =  cpu_states -> reg_a;

@@ -28,7 +28,6 @@ typedef void (IO_API *io_write_func_t)(uint8_t, uint8_t);
 
 const uint16_t NMI_VEC = 0xFFFA;
 const uint16_t RESET_VEC = 0xFFFC;
-const uint16_t IRQ_VEC = 0xFFFE;
 
 const unsigned long VERSION = 0x06;
 
