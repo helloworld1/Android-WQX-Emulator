@@ -599,7 +599,7 @@ void Initialize(const char* path) {
 	for (unsigned long i=0; i<0x100; i++) {
 		rom_volume0[i] = rom_buff + (0x8000 * i);
 		rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
-		rom_volume1[i] = rom_buff + (0x8000 * (0x200 + i));
+		rom_volume2[i] = rom_buff + (0x8000 * (0x200 + i));
 	}
 	for (unsigned long i=0; i<0x20; i++) {
 		nor_banks[i] = nor_buff + (0x8000 * i);
