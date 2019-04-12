@@ -35,6 +35,34 @@ void init_6502(uint8_t (*Peek_func)(uint16_t addr),
     store = Store_func;
 }
 
+/**
+ * @return cycles for the execution
+ */
+int do_irq(cpu_states_t *cpu_states) {
+    uint8_t reg_sp = cpu_states -> reg_sp;
+    uint16_t reg_pc = cpu_states -> reg_pc;
+    uint8_t reg_ps = cpu_states -> reg_ps;
+
+    if (!(reg_ps & 0x04)) {
+        store_stack(reg_sp--,reg_pc >> 8);
+        store_stack(reg_sp--, reg_pc & 0xFF);
+        reg_ps &= 0xEF;
+        store_stack(reg_sp--, reg_ps);
+        reg_pc = peek_word(IRQ_VEC);
+        reg_ps |= 0x04;
+
+        cpu_states -> reg_sp = reg_sp;
+        cpu_states -> reg_pc = reg_pc;
+        cpu_states -> reg_ps = reg_ps;
+        return 7;
+    }
+    return 0;
+}
+
+
+/**
+ * @return cycles for the execution
+ */
 int execute_6502(cpu_states_t *cpu_states) {
     unsigned long cycles = 0;
     uint16_t reg_pc = cpu_states -> reg_pc;

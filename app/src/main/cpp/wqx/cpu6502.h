@@ -19,6 +19,9 @@ typedef struct {
 void init_6502(uint8_t (*Peek_func)(uint16_t addr),
                uint8_t (*Load_func)(uint16_t addr),
                void (*Store_func)(uint16_t addr, uint8_t value));
+
 int execute_6502(cpu_states_t *cpu_states);
+
+int do_irq(cpu_states_t *cpu_states);
 
 #endif //NC1020_CPU6502_H

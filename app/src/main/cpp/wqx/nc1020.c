@@ -759,15 +759,9 @@ void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 			}
 			nc1020_states.should_irq = true;
 		}
-		if (nc1020_states.should_irq && !(nc1020_states.cpu.reg_ps & 0x04)) {
+		if (nc1020_states.should_irq) {
 			nc1020_states.should_irq = false;
-			stack[nc1020_states.cpu.reg_sp --] = nc1020_states.cpu.reg_pc >> 8;
-			stack[nc1020_states.cpu.reg_sp --] = nc1020_states.cpu.reg_pc & 0xFF;
-			nc1020_states.cpu.reg_ps &= 0xEF;
-			stack[nc1020_states.cpu.reg_sp --] = nc1020_states.cpu.reg_ps;
-			nc1020_states.cpu.reg_pc = peek_word(IRQ_VEC);
-			nc1020_states.cpu.reg_ps |= 0x04;
-			cycles += 7;
+			cycles += do_irq(&nc1020_states.cpu);
 		}
 		if (cycles >= nc1020_states.timer1_cycles) {
 			if (speed_up) {
