@@ -6,6 +6,7 @@ add_library(
         NC1020
         SHARED
         gmail_hackwaly_nc1020_NC1020_JNI.c
+        wqx/cpu6502.c
         wqx/nc1020.c)
 
 target_link_libraries(
