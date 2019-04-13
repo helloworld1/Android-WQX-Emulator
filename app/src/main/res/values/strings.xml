@@ -7,5 +7,6 @@
     <string name="action_load">Load</string>
     <string name="action_save">Save</string>
     <string name="action_quit">Quit</string>
-    
+    <string name="fps_text">FPS: %d</string>
+
 </resources>

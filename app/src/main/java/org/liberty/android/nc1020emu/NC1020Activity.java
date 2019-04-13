@@ -12,10 +12,7 @@ import java.util.concurrent.Executors;
 
 import android.graphics.Point;
 import android.os.Bundle;
-import android.os.Handler;
-import android.preference.PreferenceManager;
 import android.app.Activity;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
@@ -29,23 +26,26 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 public class NC1020Activity extends Activity implements SurfaceHolder.Callback, OnKeyListener, Choreographer.FrameCallback {
     private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
 
-    private byte[] lcdBuffer;
-    private byte[] lcdBufferEx;
+    private final byte[] lcdBuffer = new byte[1600];
+    private final byte[] lcdBufferEx = new byte[1600 * 8];
+
     private Bitmap lcdBitmap;
     private Matrix lcdMatrix;
     private SurfaceHolder lcdSurfaceHolder;
-    private SharedPreferences prefs;
     private boolean speedUp;
-    private Handler handler = new Handler();
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private boolean isRunning = true;
 
     private float displayScale = 1f;
+    private long lastFrameTime;
+    private long frames;
+    private TextView infoText;
 
     private Runnable runnable = new Runnable() {
         @Override
@@ -93,12 +93,10 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.main);
 
-        prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        NC1020KeypadView keypad = findViewById(R.id.gmud_keypad);
+        keypad.setOnKeyListener(this);
 
-        NC1020KeypadView gmudKeypad = (NC1020KeypadView) findViewById(R.id.gmud_keypad);
-        gmudKeypad.setOnKeyListener(this);
-
-        SurfaceView lcdSurfaceView = (SurfaceView) findViewById(R.id.lcd);
+        SurfaceView lcdSurfaceView = findViewById(R.id.lcd);
         int width = getScreenWidth();
         displayScale = (float) width / 160;
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( width, width / 2);
@@ -106,10 +104,10 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
         lcdSurfaceView.setLayoutParams(params);
 
         lcdSurfaceHolder = lcdSurfaceView.getHolder();
-        lcdBuffer = new byte[1600];
-        lcdBufferEx = new byte[1600 * 8];
         lcdBitmap = Bitmap.createBitmap(160, 80, Bitmap.Config.ALPHA_8);
         lcdMatrix = new Matrix();
+
+        infoText = findViewById(R.id.info);
 
         lcdSurfaceHolder.addCallback(this);
 
@@ -155,8 +153,7 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.main, menu);
-        menu.findItem(R.id.action_speed_up).setChecked(
-                prefs.getBoolean("SpeedUp",	false));
+        menu.findItem(R.id.action_speed_up).setChecked(false);
         return true;
     }
 
@@ -177,7 +174,6 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
                     item.setChecked(true);
                 }
                 speedUp = item.isChecked();
-                prefs.edit().putBoolean("SpeedUp", item.isChecked()).commit();
                 return true;
             case R.id.action_load:
                 NC1020JNI.Load();
@@ -274,6 +270,15 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void doFrame(long frameTimeNanos) {
+        frames++;
+        long now = System.currentTimeMillis();
+        long elapse = now - lastFrameTime;
+        if (elapse > 1000L) {
+            infoText.setText(String.format(getString(R.string.fps_text), (frames * 1000 / elapse)));
+            lastFrameTime = now;
+            frames = 0;
+        }
+
         updateLcd();
         Choreographer.getInstance().postFrameCallback(this);
     }

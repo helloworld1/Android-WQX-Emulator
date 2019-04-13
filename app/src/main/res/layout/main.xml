@@ -8,6 +8,11 @@
         android:id="@+id/lcd"
         android:layout_width="0dp"
         android:layout_height="0dp" />
+    <TextView
+        android:id="@+id/info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"/>
 
     <FrameLayout
         android:layout_width="match_parent"

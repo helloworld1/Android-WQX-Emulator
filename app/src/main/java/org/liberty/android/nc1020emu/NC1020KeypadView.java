@@ -99,7 +99,7 @@ public class NC1020KeypadView extends LinearLayout implements
 			{
 				new KeyItem(0x38, "Help"),
 				new KeyItem(0x39, "Shift"),
-				new KeyItem(0x3A, "CapsLk"),
+				new KeyItem(0x3A, "Caps"),
 				new KeyItem(0x3B, "Esc"),
 				new KeyItem(0x3C, "0"),
 				new KeyItem(0x3D, "."),
