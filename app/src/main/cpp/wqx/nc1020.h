@@ -12,5 +12,6 @@ extern void RunTimeSlice(unsigned long, bool);
 extern bool CopyLcdBuffer(uint8_t*);
 extern void LoadNC1020();
 extern void SaveNC1020();
+extern unsigned long GetCycles();
 
 #endif /* NC1020_H_ */

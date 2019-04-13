@@ -76,3 +76,8 @@ JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_CopyLcdB
     (*env)->ReleaseByteArrayElements(env, buffer, pBuffer, 0);
     return result;
 }
+
+JNIEXPORT jlong JNICALL
+Java_org_liberty_android_nc1020emu_NC1020JNI_GetCycles(JNIEnv *env, jclass type) {
+    return GetCycles();
+}

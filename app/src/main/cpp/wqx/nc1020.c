@@ -747,6 +747,10 @@ void SyncTime() {
     store(1137, (uint8_t) (ptr_time -> tm_sec / 2));
 }
 
+unsigned long GetCycles() {
+    return nc1020_states.cycles;
+}
+
 bool CopyLcdBuffer(uint8_t* buffer){
 	if (nc1020_states.lcd_addr == 0) return false;
 	memcpy(buffer, ram_buff + nc1020_states.lcd_addr, 1600);
@@ -797,7 +801,7 @@ void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 		}
 	}
 
-	nc1020_states.cycles = cycles;
+	nc1020_states.cycles += cycles;
 	nc1020_states.timer0_cycles -= end_cycles;
 	nc1020_states.timer1_cycles -= end_cycles;
 }

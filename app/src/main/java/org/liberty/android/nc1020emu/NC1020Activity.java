@@ -31,6 +31,7 @@ import android.widget.TextView;
 public class NC1020Activity extends Activity implements SurfaceHolder.Callback, OnKeyListener, Choreographer.FrameCallback {
     private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
+    private static final long CYCLES_SECOND = 5120000;
 
     private final byte[] lcdBuffer = new byte[1600];
     private final byte[] lcdBufferEx = new byte[1600 * 8];
@@ -44,6 +45,7 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
 
     private float displayScale = 1f;
     private long lastFrameTime;
+    private long lastCycles;
     private long frames;
     private TextView infoText;
 
@@ -75,7 +77,8 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
                 long elapsed = System.currentTimeMillis() - startTime;
                 if (elapsed < FRAME_INTERVAL) {
                     try {
-                        Thread.sleep(FRAME_INTERVAL - elapsed);
+                        // If speedUp, don't sleep, run as much frames as system can
+                        Thread.sleep(speedUp ? 0 : FRAME_INTERVAL - elapsed);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -268,17 +271,25 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
         lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
     }
 
-    @Override
-    public void doFrame(long frameTimeNanos) {
+    private void displayPerf() {
         frames++;
         long now = System.currentTimeMillis();
         long elapse = now - lastFrameTime;
         if (elapse > 1000L) {
-            infoText.setText(String.format(getString(R.string.fps_text), (frames * 1000 / elapse)));
+            long fps = frames * 1000 / elapse;
+            long cycles = NC1020JNI.GetCycles();
+            long percentage = (cycles - lastCycles) * 100 / CYCLES_SECOND;
+            infoText.setText(String.format(getString(R.string.perf_text), fps, cycles, percentage));
+            lastCycles = cycles;
             lastFrameTime = now;
             frames = 0;
         }
 
+    }
+
+    @Override
+    public void doFrame(long frameTimeNanos) {
+        displayPerf();
         updateLcd();
         Choreographer.getInstance().postFrameCallback(this);
     }
