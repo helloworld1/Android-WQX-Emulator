@@ -1,6 +1,6 @@
-package gmail.hackwaly.nc1020;
+package org.liberty.android.nc1020emu;
 
-import gmail.hackwaly.nc1020.NC1020KeypadView.OnKeyListener;
+import org.liberty.android.nc1020emu.NC1020KeypadView.OnKeyListener;
 
 import java.io.File;
 import java.io.FileOutputStream;

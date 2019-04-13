@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="fill_parent" >
 
-        <gmail.hackwaly.nc1020.NC1020KeypadView
+        <org.liberty.android.nc1020emu.NC1020KeypadView
             android:id="@+id/gmud_keypad"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

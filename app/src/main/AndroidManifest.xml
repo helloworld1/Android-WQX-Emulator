@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="gmail.hackwaly.nc1020"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="org.liberty.android.nc1020emu"
     android:versionCode="1"
     android:versionName="1.0" >
 
@@ -8,9 +9,10 @@
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/AppTheme"
+        tools:ignore="GoogleAppIndexingWarning">
         <activity
-            android:name="gmail.hackwaly.nc1020.NC1020Activity"
+            android:name="NC1020Activity"
             android:launchMode="singleInstance"
             android:label="@string/app_name" >
             <intent-filter>

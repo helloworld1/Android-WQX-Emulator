@@ -1,4 +1,4 @@
-package gmail.hackwaly.nc1020;
+package org.liberty.android.nc1020emu;
 
 import android.content.Context;
 import android.util.AttributeSet;
