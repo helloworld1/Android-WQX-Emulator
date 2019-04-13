@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
 
 // cpu cycles per second (cpu freq).
 const unsigned long CYCLES_SECOND = 5120000;
@@ -732,6 +733,20 @@ void SetKey(uint8_t key_id, bool down_or_up){
 	}
 }
 
+void SyncTime() {
+    time_t time_raw_format;
+    struct tm * ptr_time;
+    time ( &time_raw_format );
+    ptr_time = localtime ( &time_raw_format );
+    store(1138, (uint8_t) (1900 + ptr_time -> tm_year - 1881));
+    store(1139, (uint8_t) (ptr_time -> tm_mon + 1));
+    store(1140, (uint8_t) (ptr_time -> tm_mday + 1));
+    store(1141, (uint8_t) (ptr_time -> tm_wday));
+    store(1135, (uint8_t) (ptr_time -> tm_hour));
+    store(1136, (uint8_t) (ptr_time -> tm_min));
+    store(1137, (uint8_t) (ptr_time -> tm_sec / 2));
+}
+
 bool CopyLcdBuffer(uint8_t* buffer){
 	if (nc1020_states.lcd_addr == 0) return false;
 	memcpy(buffer, ram_buff + nc1020_states.lcd_addr, 1600);
@@ -740,7 +755,8 @@ bool CopyLcdBuffer(uint8_t* buffer){
 
 void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 	unsigned long end_cycles = time_slice * CYCLES_MS;
-	unsigned long cycles = nc1020_states.cycles;
+
+    unsigned long cycles = 0;
 
 	while (cycles < end_cycles) {
 		cycles += execute_6502(&nc1020_states.cpu);
@@ -781,7 +797,7 @@ void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 		}
 	}
 
-	cycles -= end_cycles;
+	nc1020_states.cycles = cycles;
 	nc1020_states.timer0_cycles -= end_cycles;
 	nc1020_states.timer1_cycles -= end_cycles;
 }
