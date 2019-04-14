@@ -93,7 +93,6 @@ static uint8_t* memmap[8];
 static nc1020_states_t nc1020_states;
 
 static uint8_t* ram_buff;
-static uint8_t* stack;
 static uint8_t* ram_io;
 static uint8_t* ram_40;
 static uint8_t* ram_page0;
@@ -169,11 +168,32 @@ static void generate_and_play_jg_wav(){
 
 }
 
-static uint8_t* get_ptr_40(uint8_t index){
+static uint8_t* get_zero_page_pointer(uint8_t index){
+    //.text:0040BFD0 bank            = byte ptr  4
+    //.text:0040BFD0
+    //.text:0040BFD0                 mov     al, [esp+bank]
+    //.text:0040BFD4                 cmp     al, 4
+    //.text:0040BFD6                 jnb     short loc_40BFE5 ; if (bank < 4) {
+    //.text:0040BFD8                 xor     eax, eax        ; bank == 0,1,2,3
+    //.text:0040BFD8                                         ; set bank = 0
+    //.text:0040BFDA                 and     eax, 0FFFFh     ; WORD(bank)
+    //.text:0040BFDF                 add     eax, offset gFixedRAM0 ; result = &gFixedRAM0[WORD(bank)];
+    //.text:0040BFE4                 retn                    ; }
+    //.text:0040BFE5 ; ---------------------------------------------------------------------------
+    //.text:0040BFE5
+    //.text:0040BFE5 loc_40BFE5:                             ; CODE XREF: GetZeroPagePointer+6^Xj
+    //.text:0040BFE5                 movzx   ax, al          ; 4,5,6,7
+    //.text:0040BFE9                 add     eax, 4          ; bank+=4
+    //.text:0040BFEC                 shl     eax, 6          ; bank *= 40;
+    //.text:0040BFEF                 and     eax, 0FFFFh     ; WORD(bank)
+    //.text:0040BFF4                 add     eax, offset gFixedRAM0
+    //.text:0040BFF9                 retn
+
     if (index < 4) {
         return ram_io;
     } else {
         return ram_buff + ((index) << 6u);
+
     }
 }
 
@@ -196,7 +216,6 @@ static uint8_t IO_API read_io_3f_clock(uint8_t addr){
 static void IO_API write_io_generic(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
 }
-
 
 // switch bank.
 static void IO_API write_io_00_bank_switch(uint8_t addr, uint8_t value){
@@ -287,9 +306,9 @@ static void IO_API write_io_0f_zero_page_bank_switch(uint8_t addr, uint8_t value
     old_value &= 0x07u;
     value &= 0x07u;
     if (value != old_value) {
-        uint8_t* ptr_new = get_ptr_40(value);
+        uint8_t* ptr_new = get_zero_page_pointer(value);
         if (old_value) {
-            memcpy(get_ptr_40(old_value), ram_40, 0x40);
+            memcpy(get_zero_page_pointer(old_value), ram_40, 0x40);
             memcpy(ram_40, value ? ptr_new : bak_40, 0x40);
         } else {
             memcpy(bak_40, ram_40, 0x40);
@@ -571,7 +590,6 @@ void initialize(const char *path) {
     snprintf(state_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, STATE_FILE_NAME);
 
     ram_buff = nc1020_states.ram;
-    stack = ram_buff + 0x100;
     ram_io = ram_buff;
     ram_40 = ram_buff + 0x40;
     ram_page0 = ram_buff;
