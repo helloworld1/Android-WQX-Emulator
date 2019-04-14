@@ -6,57 +6,57 @@
 #define _Included_org_liberty_android_nc1020emu_NC1020_JNI
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Initialize
+ * Method:    initialize
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Initialize
-  (JNIEnv *, jobject, jstring);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_initialize
+  (JNIEnv *, jclass , jstring);
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Reset
+ * Method:    reset
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Reset
-  (JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_reset
+  (JNIEnv *, jclass);
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Load
+ * Method:    load
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Load
-  (JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_load
+  (JNIEnv *, jclass);
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Save
+ * Method:    save
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Save
-  (JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_save
+  (JNIEnv *, jclass);
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    SetKey
+ * Method:    set_key
  * Signature: (IZ)V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_SetKey
-  (JNIEnv *, jobject, jint, jboolean);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_setKey
+  (JNIEnv *, jclass, jint, jboolean);
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    RunTimeSlice
+ * Method:    run_time_slice
  * Signature: (I)V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_RunTimeSlice
-  (JNIEnv *, jobject, jint, jboolean);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_runTimeSlice
+  (JNIEnv *, jclass, jint, jboolean);
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    CopyLcdBuffer
+ * Method:    copy_lcd_buffer
  * Signature: ([C)V
  */
-JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_CopyLcdBuffer
+JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_copyLcdBuffer
   (JNIEnv *, jobject, jbyteArray);
 #endif

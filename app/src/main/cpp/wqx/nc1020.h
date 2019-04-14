@@ -5,13 +5,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-extern void Initialize(const char*);
-extern void Reset();
-extern void SetKey(uint8_t, bool);
-extern void RunTimeSlice(unsigned long, bool);
-extern bool CopyLcdBuffer(uint8_t*);
-extern void LoadNC1020();
-extern void SaveNC1020();
-extern unsigned long GetCycles();
+extern void initialize(const char *);
+extern void reset();
+extern void set_key(uint8_t, bool);
+extern void run_time_slice(unsigned long, bool);
+extern bool copy_lcd_buffer(uint8_t *);
+extern void load_nc1020();
+extern void save_nc1020();
+extern unsigned long get_cycles();
 
 #endif /* NC1020_H_ */

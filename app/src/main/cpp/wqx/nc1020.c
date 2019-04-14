@@ -27,10 +27,10 @@ static const uint16_t IO_LIMIT = 0x40;
 typedef uint8_t (IO_API *io_read_func_t)(uint8_t);
 typedef void (IO_API *io_write_func_t)(uint8_t, uint8_t);
 
-const uint16_t NMI_VEC = 0xFFFA;
-const uint16_t RESET_VEC = 0xFFFC;
+static const uint16_t NMI_VEC = 0xFFFA;
+static const uint16_t RESET_VEC = 0xFFFC;
 
-const unsigned long VERSION = 0x06;
+static const unsigned long VERSION = 0x06;
 
 static const char *ROM_FILE_NAME = "obj_lu.bin";
 static const char *NOR_FILE_NAME = "nc1020.fls";
@@ -113,7 +113,7 @@ static uint8_t* keypad_matrix;
 static io_read_func_t io_read[0x40];
 static io_write_func_t io_write[0x40];
 
-uint8_t* GetBank(uint8_t bank_idx){
+static uint8_t* get_bank(uint8_t bank_idx){
 	uint8_t volume_idx = ram_io[0x0D];
     if (bank_idx < 0x20) {
     	return nor_banks[bank_idx];
@@ -129,16 +129,16 @@ uint8_t* GetBank(uint8_t bank_idx){
     return NULL;
 }
 
-void SwitchBank(){
+static void switch_bank(){
 	uint8_t bank_idx = ram_io[0x00];
-	uint8_t* bank = GetBank(bank_idx);
+	uint8_t* bank = get_bank(bank_idx);
     memmap[2] = bank;
     memmap[3] = bank + 0x2000;
     memmap[4] = bank + 0x4000;
     memmap[5] = bank + 0x6000;
 }
 
-uint8_t** GetVolumm(uint8_t volume_idx){
+static uint8_t** get_volume(uint8_t volume_idx){
 	if ((volume_idx & 0x03u) == 0x01) {
 		return rom_volume1;
 	} else if ((volume_idx & 0x03u) == 0x03) {
@@ -148,9 +148,9 @@ uint8_t** GetVolumm(uint8_t volume_idx){
 	}
 }
 
-void SwitchVolume(){
+static void switch_volume(){
 	uint8_t volume_idx = ram_io[0x0D];
-    uint8_t** volume = GetVolumm(volume_idx);
+    uint8_t** volume = get_volume(volume_idx);
     for (int i=0; i<4; i++) {
         bbs_pages[i * 4] = volume[i];
         bbs_pages[i * 4 + 1] = volume[i] + 0x2000;
@@ -162,14 +162,14 @@ void SwitchVolume(){
     uint8_t roa_bbs = ram_io[0x0A];
     memmap[1] = (roa_bbs & 0x04u ? ram_page2 : ram_page1);
     memmap[6] = bbs_pages[roa_bbs & 0x0Fu];
-    SwitchBank();
+    switch_bank();
 }
 
-void GenerateAndPlayJGWav(){
+static void generate_and_play_jg_wav(){
 
 }
 
-uint8_t* GetPtr40(uint8_t index){
+static uint8_t* get_ptr_40(uint8_t index){
     if (index < 4) {
         return ram_io;
     } else {
@@ -177,41 +177,37 @@ uint8_t* GetPtr40(uint8_t index){
     }
 }
 
-uint8_t IO_API ReadXX(uint8_t addr){
+static uint8_t IO_API read_io_generic(uint8_t addr){
 	return ram_io[addr];
 }
 
-uint8_t IO_API Read06(uint8_t addr){
-	return ram_io[addr];
-}
-
-uint8_t IO_API Read3B(uint8_t addr){
+static uint8_t IO_API read_io_3b_unknown(uint8_t addr){
     if (!(ram_io[0x3D] & 0x03u)) {
         return (uint8_t) (clock_buff[0x3Bu] & 0xFEu);
     }
     return ram_io[addr];
 }
 
-uint8_t IO_API Read3F(uint8_t addr){
+static uint8_t IO_API read_io_3f_clock(uint8_t addr){
     uint8_t idx = ram_io[0x3E];
     return (uint8_t) (idx < 80 ? clock_buff[idx] : 0);
 }
 
-void IO_API WriteXX(uint8_t addr, uint8_t value){
+static void IO_API write_io_generic(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
 }
 
 
 // switch bank.
-void IO_API Write00(uint8_t addr, uint8_t value){
+static void IO_API write_io_00_bank_switch(uint8_t addr, uint8_t value){
     uint8_t old_value = ram_io[addr];
     ram_io[addr] = value;
     if (value != old_value) {
-    	SwitchBank();
+        switch_bank();
     }
 }
 
-void IO_API Write05(uint8_t addr, uint8_t value){
+static void IO_API write_io_05_clock_ctrl(uint8_t addr, uint8_t value){
 	uint8_t old_value = ram_io[addr];
 	ram_io[addr] = value;
 	if ((old_value ^ value) & 0x08u) {
@@ -219,7 +215,7 @@ void IO_API Write05(uint8_t addr, uint8_t value){
 	}
 }
 
-void IO_API Write06(uint8_t addr, uint8_t value){
+static void IO_API write_io_06_lcd_start_addr(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     if (!nc1020_states.lcd_addr) {
     	nc1020_states.lcd_addr = ((ram_io[0x0C] & 0x03u) << 12u) | (value << 4u);
@@ -227,13 +223,13 @@ void IO_API Write06(uint8_t addr, uint8_t value){
     ram_io[0x09] &= 0xFEu;
 }
 
-void IO_API Write08(uint8_t addr, uint8_t value){
+static void IO_API write_io_08_port0(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     ram_io[0x0B] &= 0xFEu;
 }
 
 // keypad matrix.
-void IO_API Write09(uint8_t addr, uint8_t value){
+static void IO_API write_io_09_port1(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     switch (value){
     case 0x01: ram_io[0x08] = keypad_matrix[0]; break;
@@ -267,7 +263,7 @@ void IO_API Write09(uint8_t addr, uint8_t value){
 }
 
 // roabbs
-void IO_API Write0A(uint8_t addr, uint8_t value){
+static void IO_API write_io_0a_roabbs(uint8_t addr, uint8_t value) {
     uint8_t old_value = ram_io[addr];
     ram_io[addr] = value;
     if (value != old_value) {
@@ -276,24 +272,24 @@ void IO_API Write0A(uint8_t addr, uint8_t value){
 }
 
 // switch volume
-void IO_API Write0D(uint8_t addr, uint8_t value){
+static void IO_API write_io_0d_volume_switch(uint8_t addr, uint8_t value){
 	uint8_t old_value = ram_io[addr];
     ram_io[addr] = value;
     if (value != old_value) {
-        SwitchVolume();
+        switch_volume();
     }
 }
 
 // zp40 switch
-void IO_API Write0F(uint8_t addr, uint8_t value){
+static void IO_API write_io_0f_zero_page_bank_switch(uint8_t addr, uint8_t value){
 	uint8_t old_value = ram_io[addr];
     ram_io[addr] = value;
     old_value &= 0x07u;
     value &= 0x07u;
     if (value != old_value) {
-        uint8_t* ptr_new = GetPtr40(value);
+        uint8_t* ptr_new = get_ptr_40(value);
         if (old_value) {
-            memcpy(GetPtr40(old_value), ram_40, 0x40);
+            memcpy(get_ptr_40(old_value), ram_40, 0x40);
             memcpy(ram_40, value ? ptr_new : bak_40, 0x40);
         } else {
             memcpy(bak_40, ram_40, 0x40);
@@ -302,7 +298,7 @@ void IO_API Write0F(uint8_t addr, uint8_t value){
     }
 }
 
-void IO_API Write20(uint8_t addr, uint8_t value){
+static void IO_API write_io_20_jg(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     if (value == 0x80 || value == 0x40) {
         memset(jg_wav_buff, 0, 0x20);
@@ -312,7 +308,7 @@ void IO_API Write20(uint8_t addr, uint8_t value){
     }
 }
 
-void IO_API Write23(uint8_t addr, uint8_t value){
+static void IO_API write_io_23_jg_wav(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     if (value == 0xC2) {
         jg_wav_buff[nc1020_states.jg_wav_idx] = ram_io[0x22];
@@ -326,7 +322,7 @@ void IO_API Write23(uint8_t addr, uint8_t value){
         nc1020_states.jg_wav_flags = 0;
         if (nc1020_states.jg_wav_idx) {
             if (!nc1020_states.jg_wav_playing) {
-                GenerateAndPlayJGWav();
+                generate_and_play_jg_wav();
                 nc1020_states.jg_wav_idx = 0;
             }
         }
@@ -337,7 +333,7 @@ void IO_API Write23(uint8_t addr, uint8_t value){
 }
 
 // clock.
-void IO_API Write3F(uint8_t addr, uint8_t value){
+static void IO_API write_io_3f_clock(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     uint8_t idx = ram_io[0x3E];
     if (idx >= 0x07) {
@@ -358,7 +354,7 @@ void IO_API Write3F(uint8_t addr, uint8_t value){
     }
 }
 
-void AdjustTime(){
+static void adjust_time(){
     if (++ clock_buff[0] >= 60) {
         clock_buff[0] = 0;
         if (++ clock_buff[1] >= 60) {
@@ -371,7 +367,7 @@ void AdjustTime(){
     }
 }
 
-bool IsCountDown(){
+static bool is_count_down(){
     if (!(clock_buff[10] & 0x02u) ||
         !(nc1020_states.clock_flags & 0x02u)) {
         return false;
@@ -387,7 +383,7 @@ bool IsCountDown(){
  * ProcessBinary
  * encrypt or decrypt wqx's binary file. just flip every bank.
  */
-void ProcessBinary(uint8_t* dest, uint8_t* src, unsigned long size){
+static void process_binary(uint8_t *dest, uint8_t *src, unsigned long size){
 	unsigned long offset = 0;
     while (offset < size) {
         memcpy(dest + offset + 0x4000, src + offset, 0x4000);
@@ -396,42 +392,42 @@ void ProcessBinary(uint8_t* dest, uint8_t* src, unsigned long size){
     }
 }
 
-void LoadRom(){
+static void load_rom(){
 	uint8_t* temp_buff = (uint8_t*)malloc(ROM_SIZE);
 	FILE* file = fopen(rom_file_path, "rbe");
 	fread(temp_buff, 1, ROM_SIZE, file);
-	ProcessBinary(rom_buff, temp_buff, ROM_SIZE);
+    process_binary(rom_buff, temp_buff, ROM_SIZE);
 	free(temp_buff);
 	fclose(file);
 }
 
-void LoadNor(){
+static void load_nor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
 	FILE* file = fopen(nor_file_path, "rbe");
 	fread(temp_buff, 1, NOR_SIZE, file);
-	ProcessBinary(nor_buff, temp_buff, NOR_SIZE);
+    process_binary(nor_buff, temp_buff, NOR_SIZE);
 	free(temp_buff);
 	fclose(file);
 }
 
-void SaveNor(){
+static void save_nor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
 	FILE* file = fopen(nor_file_path, "wbe");
-	ProcessBinary(temp_buff, nor_buff, NOR_SIZE);
+    process_binary(temp_buff, nor_buff, NOR_SIZE);
 	fwrite(temp_buff, 1, NOR_SIZE, file);
 	fflush(file);
 	free(temp_buff);
 	fclose(file);
 }
 
-uint8_t peek_byte(uint16_t addr) {
+static uint8_t peek_byte(uint16_t addr) {
 	return memmap[addr / 0x2000][addr % 0x2000];
 }
 
-uint16_t peek_word(uint16_t addr) {
+static uint16_t peek_word(uint16_t addr) {
 	return peek_byte(addr) | (peek_byte((uint16_t) (addr + 1u)) << 8u);
 }
-uint8_t load(uint16_t addr) {
+static uint8_t load(uint16_t addr) {
 	if (addr < IO_LIMIT) {
 		return io_read[addr]((uint8_t) addr);
 	}
@@ -448,7 +444,7 @@ uint8_t load(uint16_t addr) {
 	return peek_byte(addr);
 }
 
-void store(uint16_t addr, uint8_t value) {
+static void store(uint16_t addr, uint8_t value) {
 	if (addr < IO_LIMIT) {
 		io_write[addr]((uint8_t) addr, value);
 		return;
@@ -569,7 +565,7 @@ void store(uint16_t addr, uint8_t value) {
     printf("error occurs when operate in flash!");
 }
 
-void Initialize(const char* path) {
+void initialize(const char *path) {
     snprintf(rom_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, ROM_FILE_NAME);
     snprintf(nor_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, NOR_FILE_NAME);
     snprintf(state_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, STATE_FILE_NAME);
@@ -597,36 +593,35 @@ void Initialize(const char* path) {
 		nor_banks[i] = nor_buff + (0x8000 * i);
 	}
 	for (unsigned long i=0; i<0x40; i++) {
-		io_read[i] = ReadXX;
-		io_write[i] = WriteXX;
+		io_read[i] = read_io_generic;
+		io_write[i] = write_io_generic;
 	}
-	io_read[0x06] = Read06;
-	io_read[0x3B] = Read3B;
-	io_read[0x3F] = Read3F;
-	io_write[0x00] = Write00;
-	io_write[0x05] = Write05;
-	io_write[0x06] = Write06;
-	io_write[0x08] = Write08;
-	io_write[0x09] = Write09;
-	io_write[0x0A] = Write0A;
-	io_write[0x0D] = Write0D;
-	io_write[0x0F] = Write0F;
-	io_write[0x20] = Write20;
-	io_write[0x23] = Write23;
-	io_write[0x3F] = Write3F;
+	io_read[0x3B] = read_io_3b_unknown;
+	io_read[0x3F] = read_io_3f_clock;
+	io_write[0x00] = write_io_00_bank_switch;
+	io_write[0x05] = write_io_05_clock_ctrl;
+	io_write[0x06] = write_io_06_lcd_start_addr;
+	io_write[0x08] = write_io_08_port0;
+	io_write[0x09] = write_io_09_port1;
+	io_write[0x0A] = write_io_0a_roabbs;
+	io_write[0x0D] = write_io_0d_volume_switch;
+	io_write[0x0F] = write_io_0f_zero_page_bank_switch;
+	io_write[0x20] = write_io_20_jg;
+	io_write[0x23] = write_io_23_jg_wav;
+	io_write[0x3F] = write_io_3f_clock;
 
 	init_6502(peek_byte, load, store);
 
-	LoadRom();
+    load_rom();
 }
 
-void ResetStates(){
+static void reset_states(){
 	nc1020_states.version = VERSION;
 
 	memset(ram_buff, 0, 0x8000);
 	memmap[0] = ram_page0;
 	memmap[2] = ram_page2;
-	SwitchVolume();
+    switch_volume();
 
 	memset(keypad_matrix, 0, 8);
 
@@ -658,13 +653,8 @@ void ResetStates(){
 	nc1020_states.timer1_cycles = CYCLES_TIMER1;
 }
 
-void Reset() {
-	LoadNor();
-	ResetStates();
-}
-
-void LoadStates(){
-	ResetStates();
+static void load_states(){
+    reset_states();
 	FILE* file = fopen(state_file_path, "rbe");
 	if (file == NULL) {
 		return;
@@ -674,27 +664,32 @@ void LoadStates(){
 	if (nc1020_states.version != VERSION) {
 		return;
 	}
-	SwitchVolume();
+    switch_volume();
 }
 
-void SaveStates(){
+static void save_states(){
 	FILE* file = fopen(state_file_path, "wbe");
 	fwrite(&nc1020_states, 1, sizeof(nc1020_states), file);
 	fflush(file);
 	fclose(file);
 }
 
-void LoadNC1020(){
-	LoadNor();
-	LoadStates();
+void reset() {
+    load_nor();
+    reset_states();
 }
 
-void SaveNC1020(){
-	SaveNor();
-	SaveStates();
+void load_nc1020(){
+    load_nor();
+    load_states();
 }
 
-void SetKey(uint8_t key_id, bool down_or_up){
+void save_nc1020(){
+    save_nor();
+    save_states();
+}
+
+void set_key(uint8_t key_id, bool down_or_up){
 	uint8_t row = (uint8_t) (key_id % 8u);
 	uint8_t col = (uint8_t) (key_id / 8u);
 	uint8_t bits = (uint8_t) (1u << col);
@@ -733,7 +728,7 @@ void SetKey(uint8_t key_id, bool down_or_up){
 	}
 }
 
-void SyncTime() {
+void sync_time() {
     time_t time_raw_format;
     struct tm * ptr_time;
     time ( &time_raw_format );
@@ -747,17 +742,17 @@ void SyncTime() {
     store(1137, (uint8_t) (ptr_time -> tm_sec / 2));
 }
 
-unsigned long GetCycles() {
+unsigned long get_cycles() {
     return nc1020_states.cycles;
 }
 
-bool CopyLcdBuffer(uint8_t* buffer){
+bool copy_lcd_buffer(uint8_t *buffer){
 	if (nc1020_states.lcd_addr == 0) return false;
 	memcpy(buffer, ram_buff + nc1020_states.lcd_addr, 1600);
 	return true;
 }
 
-void RunTimeSlice(unsigned long time_slice, bool speed_up) {
+void run_time_slice(unsigned long time_slice, bool speed_up) {
 	unsigned long end_cycles = time_slice * CYCLES_MS;
 
     unsigned long cycles = 0;
@@ -768,9 +763,9 @@ void RunTimeSlice(unsigned long time_slice, bool speed_up) {
 			nc1020_states.timer0_cycles += CYCLES_TIMER0;
 			nc1020_states.timer0_toggle = !nc1020_states.timer0_toggle;
 			if (!nc1020_states.timer0_toggle) {
-				AdjustTime();
+                adjust_time();
 			}
-			if (!IsCountDown() || nc1020_states.timer0_toggle) {
+			if (!is_count_down() || nc1020_states.timer0_toggle) {
 				ram_io[0x3D] = 0;
 			} else {
 				ram_io[0x3D] = 0x20;

@@ -4,80 +4,80 @@
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Initialize
+ * Method:    initialize
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Initialize
-        (JNIEnv *env, jobject obj, jstring path) {
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_initialize
+        (JNIEnv *env, jclass type, jstring path) {
     const char* path1 = (*env)->GetStringUTFChars(env, path, NULL);
-    Initialize(path1);
+    initialize(path1);
     (*env)->ReleaseStringUTFChars(env, path, path1);
 }
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Reset
+ * Method:    reset
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Reset
-        (JNIEnv *env, jobject obj) {
-    Reset();
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_reset
+        (JNIEnv *env, jclass type) {
+    reset();
 }
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Load
+ * Method:    load
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Load
-        (JNIEnv *env, jobject obj) {
-    LoadNC1020();
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_load
+        (JNIEnv *env, jclass type) {
+    load_nc1020();
 }
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    Save
+ * Method:    save
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_Save
-        (JNIEnv *env, jobject obj) {
-    SaveNC1020();
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_save
+        (JNIEnv *env, jclass type) {
+    save_nc1020();
 }
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    SetKey
+ * Method:    set_key
  * Signature: (IZ)V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_SetKey
-        (JNIEnv *env, jobject obj, jint keyId, jboolean downOrUp) {
-    SetKey((uint8_t)(keyId & 0x3F), downOrUp);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_setKey
+        (JNIEnv *env, jclass type, jint keyId, jboolean downOrUp) {
+    set_key((uint8_t) (keyId & 0x3F), downOrUp);
 }
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    RunTimeSlice
+ * Method:    run_time_slice
  * Signature: (I)V
  */
-JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_RunTimeSlice
-        (JNIEnv *env, jobject obj, jint timeSlice, jboolean speedUp) {
-    RunTimeSlice((size_t)timeSlice, speedUp);
+JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_runTimeSlice
+        (JNIEnv *env, jclass type, jint timeSlice, jboolean speedUp) {
+    run_time_slice((size_t) timeSlice, speedUp);
 }
 
 /*
  * Class:     org_liberty_android_nc1020emu_NC1020_JNI
- * Method:    CopyLcdBuffer
+ * Method:    copy_lcd_buffer
  * Signature: ([C)V
  */
-JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_CopyLcdBuffer
-        (JNIEnv *env, jobject obj, jbyteArray buffer) {
+JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_copyLcdBuffer
+        (JNIEnv *env, jclass type, jbyteArray buffer) {
     jbyte* pBuffer = (*env)->GetByteArrayElements(env, buffer, NULL);
-    jboolean result = CopyLcdBuffer((uint8_t*)pBuffer);
+    jboolean result = copy_lcd_buffer((uint8_t *) pBuffer);
     (*env)->ReleaseByteArrayElements(env, buffer, pBuffer, 0);
     return result;
 }
 
 JNIEXPORT jlong JNICALL
-Java_org_liberty_android_nc1020emu_NC1020JNI_GetCycles(JNIEnv *env, jclass type) {
-    return GetCycles();
+Java_org_liberty_android_nc1020emu_NC1020JNI_getCycles(JNIEnv *env, jclass type) {
+    return get_cycles();
 }

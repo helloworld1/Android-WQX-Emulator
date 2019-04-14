@@ -54,9 +54,9 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
             long interval = 0L;
             while (isRunning) {
                 long startTime = System.currentTimeMillis();
-                NC1020JNI.RunTimeSlice((int)interval, speedUp);
+                NC1020JNI.runTimeSlice((int)interval, speedUp);
 
-                if (NC1020JNI.CopyLcdBuffer(lcdBuffer)) {
+                if (NC1020JNI.copyLcdBuffer(lcdBuffer)) {
                     synchronized (lcdBufferEx) {
                         for (int y = 0; y < 80; y++) {
                             for (int j = 0; j < 20; j++) {
@@ -99,12 +99,12 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
         keypad.setOnButtonTouchListener(new KeypadLayout.OnButtonPressedListener() {
             @Override
             public void onKeyDown(int keyCode) {
-                NC1020JNI.SetKey(keyCode, true);
+                NC1020JNI.setKey(keyCode, true);
             }
 
             @Override
             public void onKeyUp(int keyCode) {
-                NC1020JNI.SetKey(keyCode, false);
+                NC1020JNI.setKey(keyCode, false);
             }
         });
 
@@ -124,8 +124,8 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
         lcdSurfaceHolder.addCallback(this);
 
         String dir = initDataFolder();
-        NC1020JNI.Initialize(dir);
-        NC1020JNI.Load();
+        NC1020JNI.initialize(dir);
+        NC1020JNI.load();
     }
 
     @Override
@@ -146,7 +146,7 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event)  {
         if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-            NC1020JNI.SetKey(0x3B, true);
+            NC1020JNI.setKey(0x3B, true);
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -155,7 +155,7 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event)  {
         if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-            NC1020JNI.SetKey(0x3B, false);
+            NC1020JNI.setKey(0x3B, false);
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -177,7 +177,7 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
                 finish();
                 return true;
             case R.id.action_restart:
-                NC1020JNI.Reset();
+                NC1020JNI.reset();
                 return true;
             case R.id.action_speed_up:
                 if (item.isChecked()) {
@@ -188,10 +188,10 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
                 speedUp = item.isChecked();
                 return true;
             case R.id.action_load:
-                NC1020JNI.Load();
+                NC1020JNI.load();
                 return true;
             case R.id.action_save:
-                NC1020JNI.Save();
+                NC1020JNI.save();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -276,7 +276,7 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
         long elapse = now - lastFrameTime;
         if (elapse > 1000L) {
             long fps = frames * 1000 / elapse;
-            long cycles = NC1020JNI.GetCycles();
+            long cycles = NC1020JNI.getCycles();
             long percentage = (cycles - lastCycles) * 100 / CYCLES_SECOND;
             infoText.setText(String.format(getString(R.string.perf_text), fps, cycles, percentage));
             lastCycles = cycles;
