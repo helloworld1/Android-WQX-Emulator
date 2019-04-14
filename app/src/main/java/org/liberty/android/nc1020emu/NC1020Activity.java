@@ -16,7 +16,6 @@ import android.graphics.Matrix;
 import android.view.Choreographer;
 import android.view.Display;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceHolder;
@@ -141,24 +140,6 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
         isRunning = false;
         Choreographer.getInstance().removeFrameCallback(this);
         super.onPause();
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event)  {
-        if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-            NC1020JNI.setKey(0x3B, true);
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
-    }
-
-    @Override
-    public boolean onKeyUp(int keyCode, KeyEvent event)  {
-        if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-            NC1020JNI.setKey(0x3B, false);
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
     }
 
     @Override
