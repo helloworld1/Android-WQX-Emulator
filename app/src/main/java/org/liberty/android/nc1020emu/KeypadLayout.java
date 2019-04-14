@@ -72,7 +72,6 @@ public class KeypadLayout extends LinearLayout {
         ImageButton f1Button = new ImageButton(getContext());
         f1Button.setImageResource(R.drawable.f1);
         int padding = getResources().getDimensionPixelSize(R.dimen.function_key_padding);
-        f1Button.setPadding(padding, padding, padding, padding);
         f1Button.setLayoutParams(functionButtonParams);
         f1Button.setScaleType(ImageView.ScaleType.FIT_XY);
         f1Button.setOnTouchListener(onButtonTouchListener);
