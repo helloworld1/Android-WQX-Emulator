@@ -1,9 +1,9 @@
 apply plugin: 'com.android.application'
 
-/**
- * The android{} block configures all of the parameters for the Android build.
- * You must provide a value for at least the compilation target.
- */
+repositories {
+    google()
+}
+
 android {
     compileSdkVersion 28
 
