@@ -10,7 +10,6 @@ import java.util.concurrent.Executors;
 
 import android.graphics.Point;
 import android.os.Bundle;
-import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
@@ -26,7 +25,9 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-public class NC1020Activity extends Activity implements SurfaceHolder.Callback, Choreographer.FrameCallback {
+import androidx.appcompat.app.AppCompatActivity;
+
+public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.Callback, Choreographer.FrameCallback {
     private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
     private static final long CYCLES_SECOND = 5120000;
