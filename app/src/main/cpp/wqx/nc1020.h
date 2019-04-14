@@ -12,6 +12,6 @@ extern void run_time_slice(unsigned long, bool);
 extern bool copy_lcd_buffer(uint8_t *);
 extern void load_nc1020();
 extern void save_nc1020();
-extern unsigned long get_cycles();
+extern uint64_t get_cycles();
 
 #endif /* NC1020_H_ */

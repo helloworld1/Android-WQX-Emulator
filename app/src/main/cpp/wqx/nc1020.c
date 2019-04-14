@@ -7,20 +7,20 @@
 #include <time.h>
 
 // cpu cycles per second (cpu freq).
-const unsigned long CYCLES_SECOND = 5120000;
-const unsigned long TIMER0_FREQ = 2;
-const unsigned long TIMER1_FREQ = 0x100;
+const uint64_t CYCLES_SECOND = 5120000;
+const uint64_t TIMER0_FREQ = 2;
+const uint64_t TIMER1_FREQ = 0x100;
 // cpu cycles per timer0 period (1/2 s).
-const unsigned long CYCLES_TIMER0 = CYCLES_SECOND / TIMER0_FREQ;
+const uint64_t CYCLES_TIMER0 = CYCLES_SECOND / TIMER0_FREQ;
 // cpu cycles per timer1 period (1/256 s).
-const unsigned long CYCLES_TIMER1 = CYCLES_SECOND / TIMER1_FREQ;
+const uint64_t CYCLES_TIMER1 = CYCLES_SECOND / TIMER1_FREQ;
 // speed up
-const unsigned long CYCLES_TIMER1_SPEED_UP = CYCLES_SECOND / TIMER1_FREQ / 20;
+const uint64_t CYCLES_TIMER1_SPEED_UP = CYCLES_SECOND / TIMER1_FREQ / 20;
 // cpu cycles per ms (1/1000 s).
-const unsigned long CYCLES_MS = CYCLES_SECOND / 1000;
+const uint64_t CYCLES_MS = CYCLES_SECOND / 1000;
 
-static const unsigned long ROM_SIZE = 0x8000 * 0x300;
-static const unsigned long NOR_SIZE = 0x8000 * 0x20;
+static const uint64_t ROM_SIZE = 0x8000 * 0x300;
+static const uint64_t NOR_SIZE = 0x8000 * 0x20;
 
 static const uint16_t IO_LIMIT = 0x40;
 #define IO_API
@@ -30,7 +30,7 @@ typedef void (IO_API *io_write_func_t)(uint8_t, uint8_t);
 static const uint16_t NMI_VEC = 0xFFFA;
 static const uint16_t RESET_VEC = 0xFFFC;
 
-static const unsigned long VERSION = 0x06;
+static const uint64_t VERSION = 0x06;
 
 static const char *ROM_FILE_NAME = "obj_lu.bin";
 static const char *NOR_FILE_NAME = "nc1020.fls";
@@ -39,7 +39,7 @@ static const char *STATE_FILE_NAME = "nc1020.sts";
 static const int MAX_FILE_NAME_LENGTH = 255;
 
 typedef struct {
-	unsigned long version;
+	uint64_t version;
 	cpu_states_t cpu;
 	uint8_t ram[0x8000];
 
@@ -66,12 +66,12 @@ typedef struct {
 	uint8_t wake_up_flags;
 
 	bool timer0_toggle;
-	unsigned long cycles;
-	unsigned long timer0_cycles;
-	unsigned long timer1_cycles;
+	uint64_t cycles;
+	uint64_t timer0_cycles;
+	uint64_t timer1_cycles;
 	bool should_irq;
 
-	unsigned long lcd_addr;
+	uint64_t lcd_addr;
 	uint8_t keypad_matrix[8];
 } nc1020_states_t;
 
@@ -402,8 +402,8 @@ static bool is_count_down(){
  * ProcessBinary
  * encrypt or decrypt wqx's binary file. just flip every bank.
  */
-static void process_binary(uint8_t *dest, uint8_t *src, unsigned long size){
-	unsigned long offset = 0;
+static void process_binary(uint8_t *dest, uint8_t *src, uint64_t size){
+	uint64_t offset = 0;
     while (offset < size) {
         memcpy(dest + offset + 0x4000, src + offset, 0x4000);
         memcpy(dest + offset, src + offset + 0x4000, 0x4000);
@@ -554,7 +554,7 @@ static void store(uint16_t addr, uint8_t value) {
         }
     } else if (nc1020_states.fp_step == 5) {
         if (addr == 0x5555 && value == 0x10) {
-        	for (unsigned long i=0; i<0x20; i++) {
+        	for (uint64_t i=0; i<0x20; i++) {
                 memset(nor_banks[i], 0xFF, 0x8000);
             }
             if (nc1020_states.fp_type == 5) {
@@ -602,15 +602,15 @@ void initialize(const char *path) {
     fp_buff = nc1020_states.fp_buff;
     keypad_matrix = nc1020_states.keypad_matrix;
 
-	for (unsigned long i=0; i<0x100; i++) {
+	for (uint64_t i=0; i<0x100; i++) {
 		rom_volume0[i] = rom_buff + (0x8000 * i);
 		rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
 		rom_volume2[i] = rom_buff + (0x8000 * (0x200 + i));
 	}
-	for (unsigned long i=0; i<0x20; i++) {
+	for (uint64_t i=0; i<0x20; i++) {
 		nor_banks[i] = nor_buff + (0x8000 * i);
 	}
-	for (unsigned long i=0; i<0x40; i++) {
+	for (uint64_t i=0; i<0x40; i++) {
 		io_read[i] = read_io_generic;
 		io_write[i] = write_io_generic;
 	}
@@ -760,7 +760,7 @@ void sync_time() {
     store(1137, (uint8_t) (ptr_time -> tm_sec / 2));
 }
 
-unsigned long get_cycles() {
+uint64_t get_cycles() {
     return nc1020_states.cycles;
 }
 
@@ -770,10 +770,10 @@ bool copy_lcd_buffer(uint8_t *buffer){
 	return true;
 }
 
-void run_time_slice(unsigned long time_slice, bool speed_up) {
-	unsigned long end_cycles = time_slice * CYCLES_MS;
+void run_time_slice(uint64_t time_slice, bool speed_up) {
+	uint64_t end_cycles = time_slice * CYCLES_MS;
 
-    unsigned long cycles = 0;
+    uint64_t cycles = 0;
 
 	while (cycles < end_cycles) {
 		cycles += execute_6502(&nc1020_states.cpu);

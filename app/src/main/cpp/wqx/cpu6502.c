@@ -38,7 +38,7 @@ void init_6502(uint8_t (*Peek_func)(uint16_t addr),
 /**
  * @return cycles for the execution
  */
-unsigned long do_irq(cpu_states_t *cpu_states) {
+uint64_t do_irq(cpu_states_t *cpu_states) {
     uint8_t reg_sp = cpu_states -> reg_sp;
     uint16_t reg_pc = cpu_states -> reg_pc;
     uint8_t reg_ps = cpu_states -> reg_ps;
@@ -63,8 +63,8 @@ unsigned long do_irq(cpu_states_t *cpu_states) {
 /**
  * @return cycles for the execution
  */
-unsigned long execute_6502(cpu_states_t *cpu_states) {
-    unsigned long cycles = 0;
+uint64_t execute_6502(cpu_states_t *cpu_states) {
+    uint64_t cycles = 0;
     uint16_t reg_pc = cpu_states -> reg_pc;
     uint8_t reg_a =  cpu_states -> reg_a;
     uint8_t reg_ps = cpu_states -> reg_ps;
