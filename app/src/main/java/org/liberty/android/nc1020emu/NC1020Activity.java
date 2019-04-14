@@ -1,7 +1,5 @@
 package org.liberty.android.nc1020emu;
 
-import org.liberty.android.nc1020emu.NC1020KeypadView.OnKeyListener;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
