@@ -1,15 +1,6 @@
 apply plugin: 'com.android.application'
 
 /**
- * This dependencies block includes any dependencies for the project itself. The
- * following line includes all the JAR files in the libs directory.
- */
-dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    // Add other library dependencies here (see the next step)
-}
-
-/**
  * The android{} block configures all of the parameters for the Android build.
  * You must provide a value for at least the compilation target.
  */
@@ -26,3 +17,7 @@ android {
         }
     }
 }
+
+dependencies {
+}
+

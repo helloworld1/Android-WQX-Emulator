@@ -28,7 +28,7 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-public class NC1020Activity extends Activity implements SurfaceHolder.Callback, OnKeyListener, Choreographer.FrameCallback {
+public class NC1020Activity extends Activity implements SurfaceHolder.Callback, Choreographer.FrameCallback {
     private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
     private static final long CYCLES_SECOND = 5120000;
@@ -96,8 +96,18 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.main);
 
-        NC1020KeypadView keypad = findViewById(R.id.gmud_keypad);
-        keypad.setOnKeyListener(this);
+        KeypadLayout keypad = findViewById(R.id.keypad_layout);
+        keypad.setOnButtonTouchListener(new KeypadLayout.OnButtonPressedListener() {
+            @Override
+            public void onKeyDown(int keyCode) {
+                NC1020JNI.SetKey(keyCode, true);
+            }
+
+            @Override
+            public void onKeyUp(int keyCode) {
+                NC1020JNI.SetKey(keyCode, false);
+            }
+        });
 
         SurfaceView lcdSurfaceView = findViewById(R.id.lcd);
         int width = getScreenWidth();
@@ -207,16 +217,6 @@ public class NC1020Activity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-    }
-
-    @Override
-    public void onKeyDown(int keyId) {
-        NC1020JNI.SetKey(keyId, true);
-    }
-
-    @Override
-    public void onKeyUp(int keyId) {
-        NC1020JNI.SetKey(keyId, false);
     }
 
     private String initDataFolder() {
