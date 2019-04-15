@@ -169,31 +169,10 @@ static void generate_and_play_jg_wav(){
 }
 
 static uint8_t* get_zero_page_pointer(uint8_t index){
-    //.text:0040BFD0 bank            = byte ptr  4
-    //.text:0040BFD0
-    //.text:0040BFD0                 mov     al, [esp+bank]
-    //.text:0040BFD4                 cmp     al, 4
-    //.text:0040BFD6                 jnb     short loc_40BFE5 ; if (bank < 4) {
-    //.text:0040BFD8                 xor     eax, eax        ; bank == 0,1,2,3
-    //.text:0040BFD8                                         ; set bank = 0
-    //.text:0040BFDA                 and     eax, 0FFFFh     ; WORD(bank)
-    //.text:0040BFDF                 add     eax, offset gFixedRAM0 ; result = &gFixedRAM0[WORD(bank)];
-    //.text:0040BFE4                 retn                    ; }
-    //.text:0040BFE5 ; ---------------------------------------------------------------------------
-    //.text:0040BFE5
-    //.text:0040BFE5 loc_40BFE5:                             ; CODE XREF: GetZeroPagePointer+6^Xj
-    //.text:0040BFE5                 movzx   ax, al          ; 4,5,6,7
-    //.text:0040BFE9                 add     eax, 4          ; bank+=4
-    //.text:0040BFEC                 shl     eax, 6          ; bank *= 40;
-    //.text:0040BFEF                 and     eax, 0FFFFh     ; WORD(bank)
-    //.text:0040BFF4                 add     eax, offset gFixedRAM0
-    //.text:0040BFF9                 retn
-
     if (index < 4) {
         return ram_io;
     } else {
         return ram_buff + ((index) << 6u);
-
     }
 }
 
@@ -705,6 +684,11 @@ void load_nc1020(){
 void save_nc1020(){
     save_nor();
     save_states();
+}
+
+void delete_state_and_nor() {
+    remove(nor_file_path);
+    remove(state_file_path);
 }
 
 void set_key(uint8_t key_id, bool down_or_up){

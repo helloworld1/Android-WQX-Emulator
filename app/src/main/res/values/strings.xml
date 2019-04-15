@@ -8,5 +8,9 @@
     <string name="action_save">Save</string>
     <string name="action_quit">Quit</string>
     <string name="perf_text" translatable="false">FPS: %d, Cycles: %d, Speed: %d%%</string>
+    <string name="factory_reset">Factory reset</string>
+    <string name="factory_reset_message">Would you like to reset to factory state?</string>
+    <string name="yes">Yes</string>
+    <string name="cancel">Cancel</string>
 
 </resources>

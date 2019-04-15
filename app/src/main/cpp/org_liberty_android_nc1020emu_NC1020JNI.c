@@ -81,3 +81,8 @@ JNIEXPORT jlong JNICALL
 Java_org_liberty_android_nc1020emu_NC1020JNI_getCycles(JNIEnv *env, jclass type) {
     return get_cycles();
 }
+
+JNIEXPORT jlong JNICALL
+Java_org_liberty_android_nc1020emu_NC1020JNI_deleteStateAndNor(JNIEnv *env, jclass type) {
+    delete_state_and_nor();
+}

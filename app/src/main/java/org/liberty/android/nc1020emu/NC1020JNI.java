@@ -9,6 +9,7 @@ public class NC1020JNI {
 	public static native void runTimeSlice(int timeSlice, boolean speedUp);
 	public static native boolean copyLcdBuffer(byte[] buffer);
 	public static native long getCycles();
+	public static native long deleteStateAndNor();
 	static {
 		System.loadLibrary("nc1020");
 	}

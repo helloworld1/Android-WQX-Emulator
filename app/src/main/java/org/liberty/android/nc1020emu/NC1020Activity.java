@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.content.DialogInterface;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.graphics.Bitmap;
@@ -24,6 +25,7 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.Callback, Choreographer.FrameCallback {
@@ -122,7 +124,7 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
 
         lcdSurfaceHolder.addCallback(this);
 
-        String dir = initDataFolder();
+        String dir = initDataFolder(false);
         NC1020JNI.initialize(dir);
         NC1020JNI.load();
     }
@@ -145,7 +147,7 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
+        getMenuInflater().inflate(R.menu.main_menu, menu);
         menu.findItem(R.id.action_speed_up).setChecked(false);
         return true;
     }
@@ -174,6 +176,10 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
             case R.id.action_save:
                 NC1020JNI.save();
                 return true;
+            case R.id.action_factory_reset:
+                showFactoryResetDialog();
+                return true;
+
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -199,11 +205,24 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
     public void surfaceDestroyed(SurfaceHolder holder) {
     }
 
-    private String initDataFolder() {
+    private void showFactoryResetDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.factory_reset)
+                .setMessage(R.string.factory_reset_message)
+                .setPositiveButton(R.string.yes, (dialog, which) -> {
+                    isRunning = false;
+                    NC1020JNI.deleteStateAndNor();
+                    recreate();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private String initDataFolder(boolean override) {
         File filesDir = getApplicationContext().getFilesDir();
         try {
-            copyFileFromAsset("nc1020.fls", filesDir);
-            copyFileFromAsset("obj_lu.bin", filesDir);
+            copyFileFromAsset("nc1020.fls", filesDir, override);
+            copyFileFromAsset("obj_lu.bin", filesDir, override);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -211,9 +230,9 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
         return filesDir.getAbsolutePath();
     }
 
-    private void copyFileFromAsset(String fileName, File folder) throws IOException {
+    private void copyFileFromAsset(String fileName, File folder, boolean override) throws IOException {
         File dest = new File(folder.getAbsoluteFile() + "/" + fileName);
-        if (dest.exists()) {
+        if (dest.exists() && !override) {
             return;
         }
         try (InputStream in = getResources().getAssets().open(fileName)) {

@@ -13,5 +13,6 @@ extern bool copy_lcd_buffer(uint8_t *);
 extern void load_nc1020();
 extern void save_nc1020();
 extern uint64_t get_cycles();
+extern void delete_state_and_nor();
 
 #endif /* NC1020_H_ */
