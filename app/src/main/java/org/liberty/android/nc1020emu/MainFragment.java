@@ -210,7 +210,7 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
         lcdMatrix.setScale(displayScale, displayScale);
 
         Canvas lcdCanvas = lcdSurfaceHolder.lockCanvas();
-        lcdCanvas.drawColor(0xFF72B056);
+        lcdCanvas.drawColor(getResources().getColor(R.color.lcd_background));
         lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
     }
 
