@@ -3,7 +3,6 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:textColorSecondary">@color/textColorSecondary</item>
     </style>
     <style name="ToolbarStyle">
         <item name="popupTheme">@style/ThemeOverlay.AppCompat.Light</item>

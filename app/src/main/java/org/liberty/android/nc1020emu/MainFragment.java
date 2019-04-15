@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.content.SharedPreferences;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.graphics.Bitmap;
@@ -29,11 +30,14 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.Navigation;
+import androidx.preference.PreferenceManager;
 
 public class MainFragment extends Fragment implements SurfaceHolder.Callback, Choreographer.FrameCallback{
     private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
     private static final long CYCLES_SECOND = 5120000;
+    private static final String SAVE_STATES_KEY = "save_states";
 
     private final byte[] lcdBuffer = new byte[1600];
     private final byte[] lcdBufferEx = new byte[1600 * 8];
@@ -50,6 +54,7 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
     private long lastCycles;
     private long frames;
     private TextView infoText;
+    private SharedPreferences preferences;
 
     private Runnable runnable = new Runnable() {
         @Override
@@ -87,6 +92,10 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
                 }
                 interval = Math.max(elapsed, FRAME_INTERVAL);
             }
+
+            if (getSaveStatesSetting()) {
+                NC1020JNI.save();
+            }
         }
     };
 
@@ -99,6 +108,8 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
+        preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
 
         KeypadLayout keypad = view.findViewById(R.id.keypad_layout);
         keypad.setOnButtonTouchListener(new KeypadLayout.OnButtonPressedListener() {
@@ -164,6 +175,10 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
                     showFactoryResetDialog();
                     return true;
 
+                case R.id.action_settings:
+                    Navigation.findNavController(toolbar).navigate(R.id.action_mainFragment_to_settingsFragment);
+                    return true;
+
                 default:
                     return false;
             }
@@ -199,10 +214,12 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
         lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
     }
 
-
-
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+    }
+
+    private boolean getSaveStatesSetting() {
+        return preferences.getBoolean(SAVE_STATES_KEY, true);
     }
 
     private void showFactoryResetDialog() {

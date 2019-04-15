@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.preference.SwitchPreferenceCompat
+        app:key="save_states"
+        app:title="@string/save_states_setting"
+        app:summaryOn="@string/save_states_setting_summary_on"
+        app:summaryOff="@string/save_states_setting_summary_off"
+        app:defaultValue="true"/>
+</androidx.preference.PreferenceScreen>

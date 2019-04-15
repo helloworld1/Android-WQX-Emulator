@@ -2,9 +2,16 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
-    app:startDestination="@+id/blankFragment">
+    app:startDestination="@+id/mainFragment">
     <fragment
-        android:id="@+id/blankFragment"
-        android:name="org.liberty.android.nc1020emu.MainFragment" />
+        android:id="@+id/mainFragment"
+        android:name="org.liberty.android.nc1020emu.MainFragment" >
+        <action
+            android:id="@+id/action_mainFragment_to_settingsFragment"
+            app:destination="@id/settingsFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="org.liberty.android.nc1020emu.SettingsFragment" />
 
 </navigation>

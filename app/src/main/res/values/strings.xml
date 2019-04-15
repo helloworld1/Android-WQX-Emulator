@@ -12,5 +12,9 @@
     <string name="factory_reset_message">Would you like to reset to factory state?</string>
     <string name="yes">Yes</string>
     <string name="cancel">Cancel</string>
+    <string name="settings">Settings</string>
+    <string name="save_states_setting">Save states</string>
+    <string name="save_states_setting_summary_on">Save states automatically upon exiting</string>
+    <string name="save_states_setting_summary_off">Do not save states automatically upon exiting</string>
 
 </resources>

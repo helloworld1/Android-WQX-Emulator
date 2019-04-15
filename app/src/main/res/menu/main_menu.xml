@@ -17,6 +17,9 @@
         android:id="@+id/action_factory_reset"
         android:title="@string/factory_reset"/>
     <item
+        android:id="@+id/action_settings"
+        android:title="@string/settings"/>
+    <item
         android:id="@+id/action_quit"
         android:title="@string/action_quit"/>
 
