@@ -12,7 +12,7 @@
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
         <activity
-            android:name="NC1020Activity"
+            android:name=".MainActivity"
             android:launchMode="singleInstance"
             android:label="@string/app_name">
             <intent-filter>
