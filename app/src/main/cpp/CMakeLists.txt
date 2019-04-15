@@ -7,7 +7,8 @@ add_library(
         SHARED
         org_liberty_android_nc1020emu_NC1020JNI.c
         wqx/cpu6502.c
-        wqx/nc1020.c)
+        wqx/nc1020.c
+        wqx/nc1020_io.c)
 
 target_link_libraries(
         nc1020

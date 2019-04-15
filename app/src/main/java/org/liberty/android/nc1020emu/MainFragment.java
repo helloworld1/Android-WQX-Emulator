@@ -147,7 +147,6 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
     }
 
     private void setupToolbar(Toolbar toolbar) {
-        //toolbar.setNavigationIcon(R.drawable.ic_launcher);
         toolbar.inflateMenu(R.menu.main_menu);
         toolbar.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
