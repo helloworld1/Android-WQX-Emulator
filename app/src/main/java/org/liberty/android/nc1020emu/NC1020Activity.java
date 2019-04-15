@@ -245,7 +245,7 @@ public class NC1020Activity extends AppCompatActivity implements SurfaceHolder.C
         synchronized (lcdBufferEx) {
             lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx));
         }
-        lcdCanvas.drawColor(0xFF72B056);
+        lcdCanvas.drawColor(getResources().getColor(R.color.lcd_background));
         lcdCanvas.drawBitmap(lcdBitmap, lcdMatrix, null);
 
         lcdSurfaceHolder.unlockCanvasAndPost(lcdCanvas);
