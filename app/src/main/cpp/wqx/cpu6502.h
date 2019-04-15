@@ -20,8 +20,8 @@ void init_6502(uint8_t (*Peek_func)(uint16_t addr),
                uint8_t (*Load_func)(uint16_t addr),
                void (*Store_func)(uint16_t addr, uint8_t value));
 
-unsigned long execute_6502(cpu_states_t *cpu_states);
+uint64_t execute_6502(cpu_states_t *cpu_states);
 
-unsigned long do_irq(cpu_states_t *cpu_states);
+uint64_t do_irq(cpu_states_t *cpu_states);
 
 #endif //NC1020_CPU6502_H
