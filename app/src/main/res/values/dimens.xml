@@ -8,5 +8,9 @@
     <dimen name="function_keypad_height">40dp</dimen>
     <dimen name="function_keypad_bottom_margin">12dp</dimen>
     <dimen name="function_key_padding">8dp</dimen>
+    <dimen name="toolbar_height">48dp</dimen>
+    <dimen name="toolbar_icon_width">32dp</dimen>
+    <dimen name="toolbar_icon_height">32dp</dimen>
+    <dimen name="toolbar_icon_margin_end">8dp</dimen>
 
 </resources>

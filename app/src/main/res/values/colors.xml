@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="textColorSecondary">@android:color/white</color>
+
     <color name="keypad_button_press">#60AAAAAA</color>
     <color name="lcd_background">#FF72B056</color>
-
-    
 </resources>
