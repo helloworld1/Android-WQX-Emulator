@@ -8,31 +8,31 @@
 
 static const uint16_t IRQ_VEC = 0xFFFE;
 
-static uint8_t (*peek_byte)(uint16_t addr);
+static uint8_t (*_peek_byte)(uint16_t addr);
 
-static uint8_t (*load)(uint16_t addr);
+static uint8_t (*_load)(uint16_t addr);
 
-static void (*store)(uint16_t addr, uint8_t value);
+static void (*_store)(uint16_t addr, uint8_t value);
 
 static uint16_t peek_word(uint16_t addr) {
-    return peek_byte(addr) | (peek_byte((uint16_t) (addr + 1u)) << 8u);
+    return _peek_byte(addr) | (_peek_byte((uint16_t) (addr + 1u)) << 8u);
 }
 
 static void store_stack(uint8_t sp, uint8_t value) {
     uint16_t stack_ptr = (uint16_t) (0x100 + sp);
-    store(stack_ptr, value);
+    _store(stack_ptr, value);
 }
 
 static uint8_t load_stack(uint8_t sp) {
-    return load((uint16_t) (0x100 + sp));
+    return _load((uint16_t) (0x100 + sp));
 }
 
-void init_6502(uint8_t (*Peek_func)(uint16_t addr),
-        uint8_t (*Load_func)(uint16_t addr),
-        void (*Store_func)(uint16_t addr, uint8_t value)) {
-    peek_byte = Peek_func;
-    load = Load_func;
-    store = Store_func;
+void init_6502(uint8_t (*peek_byte)(uint16_t addr),
+        uint8_t (*load)(uint16_t addr),
+        void (*store)(uint16_t addr, uint8_t value)) {
+    _peek_byte = peek_byte;
+    _load = load;
+    _store = store;
 }
 
 /**
@@ -72,7 +72,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
     uint8_t reg_y = cpu_states -> reg_y;
     uint8_t reg_sp = cpu_states -> reg_sp;
 
-    switch (peek_byte(reg_pc++)) {
+    switch (_peek_byte(reg_pc++)) {
         case 0x00: {
             reg_pc++;
             store_stack(reg_sp--, (uint8_t) (reg_pc >> 8u));
@@ -85,8 +85,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x01: {
-            uint16_t addr = peek_word((uint16_t) ((peek_byte(reg_pc++) + reg_x) & 0xFFu));
-            reg_a |= load(addr);
+            uint16_t addr = peek_word((uint16_t) ((_peek_byte(reg_pc++) + reg_x) & 0xFFu));
+            reg_a |= _load(addr);
             reg_ps &= 0x7Du;
             reg_ps |= (reg_a & 0x80u) | (!reg_a << 1u);
             cycles += 6;
@@ -102,21 +102,21 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x05: {
-            uint16_t addr = peek_byte(reg_pc++);
-            reg_a |= load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            reg_a |= _load(addr);
             reg_ps &= 0x7Du;
             reg_ps |= (reg_a & 0x80u) | (!reg_a << 1u);
             cycles += 3;
         }
             break;
         case 0x06: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7Cu;
             reg_ps |= (tmp1 >> 7u);
             tmp1 <<= 1u;
             reg_ps |= (tmp1 & 0x80u) | (!tmp1 << 1u);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 5;
         }
             break;
@@ -130,7 +130,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0x09: {
             uint16_t addr = reg_pc++;
-            reg_a |= load(addr);
+            reg_a |= _load(addr);
             reg_ps &= 0x7Du;
             reg_ps |= (reg_a & 0x80u) | (!reg_a << 1u);
             cycles += 2;
@@ -153,7 +153,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x0D: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            reg_a |= load(addr);
+            reg_a |= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -162,12 +162,12 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x0E: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7C;
             reg_ps |= (tmp1 >> 7);
             tmp1 <<= 1;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 6;
         }
             break;
@@ -175,7 +175,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x10: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x80)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -185,11 +185,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x11: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc++;
-            reg_a |= load(addr);
+            reg_a |= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 5;
@@ -205,21 +205,21 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x15: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            reg_a |= load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            reg_a |= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
         }
             break;
         case 0x16: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7C;
             reg_ps |= (tmp1 >> 7);
             tmp1 <<= 1;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 6;
         }
             break;
@@ -236,7 +236,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            reg_a |= load(addr);
+            reg_a |= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -256,7 +256,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            reg_a |= load(addr);
+            reg_a |= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -266,12 +266,12 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7C;
             reg_ps |= (tmp1 >> 7);
             tmp1 <<= 1;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 6;
         }
             break;
@@ -289,8 +289,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x21: {
-            uint16_t addr = peek_word((peek_byte(reg_pc++) + reg_x) & 0xFF);
-            reg_a &= load(addr);
+            uint16_t addr = peek_word((_peek_byte(reg_pc++) + reg_x) & 0xFF);
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 6;
@@ -303,28 +303,28 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x24: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x3D;
             reg_ps |= (!(reg_a & tmp1) << 1) | (tmp1 & 0xC0);
             cycles += 3;
         }
             break;
         case 0x25: {
-            uint16_t addr = peek_byte(reg_pc++);
-            reg_a &= load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 3;
         }
             break;
         case 0x26: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 << 1) | (reg_ps & 0x01);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >> 7);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 5;
         }
             break;
@@ -338,7 +338,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0x29: {
             uint16_t addr = reg_pc++;
-            reg_a &= load(addr);
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 2;
@@ -358,7 +358,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x2C: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x3D;
             reg_ps |= (!(reg_a & tmp1) << 1) | (tmp1 & 0xC0);
             cycles += 4;
@@ -367,7 +367,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x2D: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            reg_a &= load(addr);
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -376,11 +376,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x2E: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 << 1) | (reg_ps & 0x01);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >> 7);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 6;
         }
             break;
@@ -388,7 +388,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x30: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x80)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -398,11 +398,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x31: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc++;
-            reg_a &= load(addr);
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 5;
@@ -418,20 +418,20 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x35: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            reg_a &= load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
         }
             break;
         case 0x36: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 << 1) | (reg_ps & 0x01);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >> 7);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 6;
         }
             break;
@@ -448,7 +448,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            reg_a &= load(addr);
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -468,7 +468,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            reg_a &= load(addr);
+            reg_a &= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -478,11 +478,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 << 1) | (reg_ps & 0x01);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >> 7);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 6;
         }
             break;
@@ -497,8 +497,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x41: {
-            uint16_t addr = peek_word((peek_byte(reg_pc++) + reg_x) & 0xFF);
-            reg_a ^= load(addr);
+            uint16_t addr = peek_word((_peek_byte(reg_pc++) + reg_x) & 0xFF);
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 6;
@@ -514,21 +514,21 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x45: {
-            uint16_t addr = peek_byte(reg_pc++);
-            reg_a ^= load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 3;
         }
             break;
         case 0x46: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7C;
             reg_ps |= (tmp1 & 0x01);
             tmp1 >>= 1;
             reg_ps |= (!tmp1 << 1);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 5;
         }
             break;
@@ -542,7 +542,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0x49: {
             uint16_t addr = reg_pc++;
-            reg_a ^= load(addr);
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 2;
@@ -569,7 +569,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x4D: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            reg_a ^= load(addr);
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -578,12 +578,12 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x4E: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7C;
             reg_ps |= (tmp1 & 0x01);
             tmp1 >>= 1;
             reg_ps |= (!tmp1 << 1);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 6;
         }
             break;
@@ -591,7 +591,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x50: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x40)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -601,11 +601,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x51: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc++;
-            reg_a ^= load(addr);
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 5;
@@ -621,21 +621,21 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x55: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            reg_a ^= load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
         }
             break;
         case 0x56: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7C;
             reg_ps |= (tmp1 & 0x01);
             tmp1 >>= 1;
             reg_ps |= (!tmp1 << 1);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 6;
         }
             break;
@@ -652,7 +652,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            reg_a ^= load(addr);
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -672,7 +672,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            reg_a ^= load(addr);
+            reg_a ^= _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -682,12 +682,12 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             reg_ps &= 0x7C;
             reg_ps |= (tmp1 & 0x01);
             tmp1 >>= 1;
             reg_ps |= (!tmp1 << 1);
-            store(addr, tmp1);
+            _store(addr, tmp1);
             cycles += 6;
         }
             break;
@@ -702,8 +702,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x61: {
-            uint16_t addr = peek_word((peek_byte(reg_pc++) + reg_x) & 0xFF);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = peek_word((_peek_byte(reg_pc++) + reg_x) & 0xFF);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -723,8 +723,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x65: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -735,12 +735,12 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x66: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 >> 1) | ((reg_ps & 0x01) << 7);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 & 0x01);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 5;
         }
             break;
@@ -756,7 +756,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0x69: {
             uint16_t addr = reg_pc++;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -787,7 +787,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x6D: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -800,11 +800,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x6E: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 >> 1) | ((reg_ps & 0x01) << 7);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 & 0x01);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 6;
         }
             break;
@@ -812,7 +812,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x70: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x40)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -822,11 +822,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x71: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc++;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -846,8 +846,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x75: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -858,12 +858,12 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x76: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 >> 1) | ((reg_ps & 0x01) << 7);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 & 0x01);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 6;
         }
             break;
@@ -880,7 +880,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -904,7 +904,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a + tmp1 + (reg_ps & 0x01);
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -918,11 +918,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             uint8_t tmp2 = (tmp1 >> 1) | ((reg_ps & 0x01) << 7);
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 & 0x01);
-            store(addr, tmp2);
+            _store(addr, tmp2);
             cycles += 6;
         }
             break;
@@ -933,8 +933,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x81: {
-            uint16_t addr = peek_word((peek_byte(reg_pc++) + reg_x) & 0xFF);
-            store(addr, reg_a);
+            uint16_t addr = peek_word((_peek_byte(reg_pc++) + reg_x) & 0xFF);
+            _store(addr, reg_a);
             cycles += 6;
         }
             break;
@@ -945,20 +945,20 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x84: {
-            uint16_t addr = peek_byte(reg_pc++);
-            store(addr, reg_y);
+            uint16_t addr = _peek_byte(reg_pc++);
+            _store(addr, reg_y);
             cycles += 3;
         }
             break;
         case 0x85: {
-            uint16_t addr = peek_byte(reg_pc++);
-            store(addr, reg_a);
+            uint16_t addr = _peek_byte(reg_pc++);
+            _store(addr, reg_a);
             cycles += 3;
         }
             break;
         case 0x86: {
-            uint16_t addr = peek_byte(reg_pc++);
-            store(addr, reg_x);
+            uint16_t addr = _peek_byte(reg_pc++);
+            _store(addr, reg_x);
             cycles += 3;
         }
             break;
@@ -988,21 +988,21 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0x8C: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            store(addr, reg_y);
+            _store(addr, reg_y);
             cycles += 4;
         }
             break;
         case 0x8D: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            store(addr, reg_a);
+            _store(addr, reg_a);
             cycles += 4;
         }
             break;
         case 0x8E: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            store(addr, reg_x);
+            _store(addr, reg_x);
             cycles += 4;
         }
             break;
@@ -1010,7 +1010,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x90: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x01)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -1020,10 +1020,10 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x91: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             addr += reg_y;
             reg_pc++;
-            store(addr, reg_a);
+            _store(addr, reg_a);
             cycles += 6;
         }
             break;
@@ -1034,20 +1034,20 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0x94: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            store(addr, reg_y);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            _store(addr, reg_y);
             cycles += 4;
         }
             break;
         case 0x95: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            store(addr, reg_a);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            _store(addr, reg_a);
             cycles += 4;
         }
             break;
         case 0x96: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_y) & 0xFF;
-            store(addr, reg_x);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_y) & 0xFF;
+            _store(addr, reg_x);
             cycles += 4;
         }
             break;
@@ -1065,7 +1065,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_y;
             reg_pc += 2;
-            store(addr, reg_a);
+            _store(addr, reg_a);
             cycles += 5;
         }
             break;
@@ -1084,7 +1084,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_x;
             reg_pc += 2;
-            store(addr, reg_a);
+            _store(addr, reg_a);
             cycles += 5;
         }
             break;
@@ -1096,15 +1096,15 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0xA0: {
             uint16_t addr = reg_pc++;
-            reg_y = load(addr);
+            reg_y = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_y & 0x80) | (!reg_y << 1);
             cycles += 2;
         }
             break;
         case 0xA1: {
-            uint16_t addr = peek_word((peek_byte(reg_pc++) + reg_x) & 0xFF);
-            reg_a = load(addr);
+            uint16_t addr = peek_word((_peek_byte(reg_pc++) + reg_x) & 0xFF);
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 6;
@@ -1112,7 +1112,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0xA2: {
             uint16_t addr = reg_pc++;
-            reg_x = load(addr);
+            reg_x = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_x & 0x80) | (!reg_x << 1);
             cycles += 2;
@@ -1122,24 +1122,24 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xA4: {
-            uint16_t addr = peek_byte(reg_pc++);
-            reg_y = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            reg_y = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_y & 0x80) | (!reg_y << 1);
             cycles += 3;
         }
             break;
         case 0xA5: {
-            uint16_t addr = peek_byte(reg_pc++);
-            reg_a = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 3;
         }
             break;
         case 0xA6: {
-            uint16_t addr = peek_byte(reg_pc++);
-            reg_x = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            reg_x = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_x & 0x80) | (!reg_x << 1);
             cycles += 3;
@@ -1157,7 +1157,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0xA9: {
             uint16_t addr = reg_pc++;
-            reg_a = load(addr);
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 2;
@@ -1176,7 +1176,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xAC: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            reg_y = load(addr);
+            reg_y = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_y & 0x80) | (!reg_y << 1);
             cycles += 4;
@@ -1185,7 +1185,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xAD: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            reg_a = load(addr);
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -1194,7 +1194,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xAE: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            reg_x = load(addr);
+            reg_x = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_x & 0x80) | (!reg_x << 1);
             cycles += 4;
@@ -1204,7 +1204,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xB0: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x01)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -1214,11 +1214,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xB1: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc++;
-            reg_a = load(addr);
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 5;
@@ -1231,24 +1231,24 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xB4: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            reg_y = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            reg_y = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_y & 0x80) | (!reg_y << 1);
             cycles += 4;
         }
             break;
         case 0xB5: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            reg_a = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
         }
             break;
         case 0xB6: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_y) & 0xFF;
-            reg_x = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_y) & 0xFF;
+            reg_x = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_x & 0x80) | (!reg_x << 1);
             cycles += 4;
@@ -1267,7 +1267,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            reg_a = load(addr);
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -1288,7 +1288,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            reg_y = load(addr);
+            reg_y = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_y & 0x80) | (!reg_y << 1);
             cycles += 4;
@@ -1299,7 +1299,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            reg_a = load(addr);
+            reg_a = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_a & 0x80) | (!reg_a << 1);
             cycles += 4;
@@ -1310,7 +1310,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            reg_x = load(addr);
+            reg_x = _load(addr);
             reg_ps &= 0x7D;
             reg_ps |= (reg_x & 0x80) | (!reg_x << 1);
             cycles += 4;
@@ -1321,7 +1321,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0xC0: {
             uint16_t addr = reg_pc++;
-            int16_t tmp1 = reg_y - load(addr);
+            int16_t tmp1 = reg_y - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1329,8 +1329,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xC1: {
-            uint16_t addr = peek_word((peek_byte(reg_pc++) + reg_x) & 0xFF);
-            int16_t tmp1 = reg_a - load(addr);
+            uint16_t addr = peek_word((_peek_byte(reg_pc++) + reg_x) & 0xFF);
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1344,8 +1344,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xC4: {
-            uint16_t addr = peek_byte(reg_pc++);
-            int16_t tmp1 = reg_y - load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            int16_t tmp1 = reg_y - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1353,8 +1353,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xC5: {
-            uint16_t addr = peek_byte(reg_pc++);
-            int16_t tmp1 = reg_a - load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1362,9 +1362,9 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xC6: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr) - 1;
-            store(addr, tmp1);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr) - 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 5;
@@ -1382,7 +1382,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0xC9: {
             uint16_t addr = reg_pc++;
-            int16_t tmp1 = reg_a - load(addr);
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1402,7 +1402,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xCC: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            int16_t tmp1 = reg_y - load(addr);
+            int16_t tmp1 = reg_y - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1412,7 +1412,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xCD: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            int16_t tmp1 = reg_a - load(addr);
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1422,8 +1422,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xCE: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr) - 1;
-            store(addr, tmp1);
+            uint8_t tmp1 = _load(addr) - 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 6;
@@ -1433,7 +1433,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xD0: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x02)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -1443,11 +1443,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xD1: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc++;
-            int16_t tmp1 = reg_a - load(addr);
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1464,8 +1464,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xD5: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            int16_t tmp1 = reg_a - load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1473,9 +1473,9 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xD6: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr) - 1;
-            store(addr, tmp1);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr) - 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 6;
@@ -1494,7 +1494,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            int16_t tmp1 = reg_a - load(addr);
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1515,7 +1515,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            int16_t tmp1 = reg_a - load(addr);
+            int16_t tmp1 = reg_a - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1526,8 +1526,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr) - 1;
-            store(addr, tmp1);
+            uint8_t tmp1 = _load(addr) - 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 6;
@@ -1538,7 +1538,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0xE0: {
             uint16_t addr = reg_pc++;
-            int16_t tmp1 = reg_x - load(addr);
+            int16_t tmp1 = reg_x - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1546,8 +1546,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xE1: {
-            uint16_t addr = peek_word((peek_byte(reg_pc++) + reg_x) & 0xFF);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = peek_word((_peek_byte(reg_pc++) + reg_x) & 0xFF);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01u) - 1u;
             uint8_t tmp3 = tmp2 & 0xFFu;
             reg_ps &= 0x3C;
@@ -1564,8 +1564,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xE4: {
-            uint16_t addr = peek_byte(reg_pc++);
-            int16_t tmp1 = reg_x - load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            int16_t tmp1 = reg_x - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1573,8 +1573,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xE5: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -1585,9 +1585,9 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xE6: {
-            uint16_t addr = peek_byte(reg_pc++);
-            uint8_t tmp1 = load(addr) + 1;
-            store(addr, tmp1);
+            uint16_t addr = _peek_byte(reg_pc++);
+            uint8_t tmp1 = _load(addr) + 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 5;
@@ -1605,7 +1605,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             break;
         case 0xE9: {
             uint16_t addr = reg_pc++;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -1625,7 +1625,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xEC: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            int16_t tmp1 = reg_x - load(addr);
+            int16_t tmp1 = reg_x - _load(addr);
             uint8_t tmp2 = tmp1 & 0xFF;
             reg_ps &= 0x7C;
             reg_ps |= (tmp2 & 0x80) | (!tmp2 << 1) | (tmp1 >= 0);
@@ -1635,7 +1635,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xED: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -1648,8 +1648,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         case 0xEE: {
             uint16_t addr = peek_word(reg_pc);
             reg_pc += 2;
-            uint8_t tmp1 = load(addr) + 1;
-            store(addr, tmp1);
+            uint8_t tmp1 = _load(addr) + 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 6;
@@ -1659,7 +1659,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xF0: {
-            int8_t tmp4 = (int8_t) (peek_byte(reg_pc++));
+            int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x02)) {
                 cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
@@ -1669,11 +1669,11 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xF1: {
-            uint16_t addr = peek_word(peek_byte(reg_pc));
+            uint16_t addr = peek_word(_peek_byte(reg_pc));
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc++;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -1693,8 +1693,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xF5: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -1705,9 +1705,9 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
         }
             break;
         case 0xF6: {
-            uint16_t addr = (peek_byte(reg_pc++) + reg_x) & 0xFF;
-            uint8_t tmp1 = load(addr) + 1;
-            store(addr, tmp1);
+            uint16_t addr = (_peek_byte(reg_pc++) + reg_x) & 0xFF;
+            uint8_t tmp1 = _load(addr) + 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 6;
@@ -1726,7 +1726,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_y) & 0xFF00);
             addr += reg_y;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -1750,7 +1750,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             cycles += !!(((addr & 0xFF) + reg_x) & 0xFF00);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr);
+            uint8_t tmp1 = _load(addr);
             int16_t tmp2 = reg_a - tmp1 + (reg_ps & 0x01) - 1;
             uint8_t tmp3 = tmp2 & 0xFF;
             reg_ps &= 0x3C;
@@ -1764,8 +1764,8 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             uint16_t addr = peek_word(reg_pc);
             addr += reg_x;
             reg_pc += 2;
-            uint8_t tmp1 = load(addr) + 1;
-            store(addr, tmp1);
+            uint8_t tmp1 = _load(addr) + 1;
+            _store(addr, tmp1);
             reg_ps &= 0x7D;
             reg_ps |= (tmp1 & 0x80) | (!tmp1 << 1);
             cycles += 6;
