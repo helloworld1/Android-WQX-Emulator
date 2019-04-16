@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.util.Log;
 import android.view.Choreographer;
 import android.view.Display;
 import android.view.Gravity;
@@ -34,9 +35,15 @@ import androidx.navigation.Navigation;
 import androidx.preference.PreferenceManager;
 
 public class MainFragment extends Fragment implements SurfaceHolder.Callback, Choreographer.FrameCallback{
+    private static final String TAG = MainFragment.class.getSimpleName();
     private static final int FRAME_RATE = 60;
     private static final int FRAME_INTERVAL = 1000 / FRAME_RATE;
     private static final long CYCLES_SECOND = 5120000;
+
+    private static final String ROM_FILE_NAME = "obj_lu.bin";
+    private static final String NOR_FILE_NAME = "nc1020.fls";
+    private static final String STATE_FILE_NAME = "nc1020.sts";
+
     private static final String SAVE_STATES_KEY = "save_states";
 
     private final byte[] lcdBuffer = new byte[1600];
@@ -141,9 +148,8 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
         Toolbar toolbar = view.findViewById(R.id.toolbar);
         setupToolbar(toolbar);
 
-        String dir = initDataFolder(false);
-        NC1020JNI.initialize(dir);
-        NC1020JNI.load();
+
+        initEmulation();
     }
 
     private void setupToolbar(Toolbar toolbar) {
@@ -187,16 +193,13 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
     @Override
     public void onResume() {
         super.onResume();
-        Choreographer.getInstance().postFrameCallback(this);
-        isRunning = true;
-        executorService.submit(runnable);
+        startEmulation();
     }
 
     @Override
     public void onPause() {
-        isRunning = false;
-        Choreographer.getInstance().removeFrameCallback(this);
         super.onPause();
+        stopEmulation();
     }
 
     @Override
@@ -217,6 +220,29 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
     public void surfaceDestroyed(SurfaceHolder holder) {
     }
 
+    private void initEmulation() {
+        initDataFolder();
+
+        String fileDir = getContext().getApplicationContext().getFilesDir().getAbsolutePath();
+        String romPath = fileDir + "/" + ROM_FILE_NAME;
+        String norPath = fileDir + "/" + NOR_FILE_NAME;
+        String statePath = fileDir + "/" + STATE_FILE_NAME;
+
+        NC1020JNI.initialize(romPath, norPath, statePath);
+        NC1020JNI.load();
+    }
+
+    private void startEmulation() {
+        Choreographer.getInstance().postFrameCallback(this);
+        isRunning = true;
+        executorService.submit(runnable);
+    }
+
+    private void stopEmulation() {
+        isRunning = false;
+        Choreographer.getInstance().removeFrameCallback(this);
+    }
+
     private boolean getSaveStatesSetting() {
         return preferences.getBoolean(SAVE_STATES_KEY, true);
     }
@@ -226,29 +252,25 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
                 .setTitle(R.string.factory_reset)
                 .setMessage(R.string.factory_reset_message)
                 .setPositiveButton(R.string.yes, (dialog, which) -> {
-                    isRunning = false;
-                    NC1020JNI.deleteStateAndNor();
-                    getActivity().recreate();
+                    factoryReset();
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
-    private String initDataFolder(boolean override) {
+    private void initDataFolder() {
         File filesDir = getContext().getApplicationContext().getFilesDir();
         try {
-            copyFileFromAsset("nc1020.fls", filesDir, override);
-            copyFileFromAsset("obj_lu.bin", filesDir, override);
+            copyFileFromAsset(ROM_FILE_NAME, filesDir);
+            copyFileFromAsset(NOR_FILE_NAME, filesDir);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        return filesDir.getAbsolutePath();
     }
 
-    private void copyFileFromAsset(String fileName, File folder, boolean override) throws IOException {
+    private void copyFileFromAsset(String fileName, File folder) throws IOException {
         File dest = new File(folder.getAbsoluteFile() + "/" + fileName);
-        if (dest.exists() && !override) {
+        if (dest.exists()) {
             return;
         }
         try (InputStream in = getResources().getAssets().open(fileName)) {
@@ -262,6 +284,24 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
                 }
             }
         }
+    }
+
+    private void factoryReset() {
+        String filesDir = getContext().getApplicationContext().getFilesDir().getAbsolutePath();
+        File norFile = new File(filesDir + "/" + NOR_FILE_NAME);
+        File stateFile = new File(filesDir + "/" + STATE_FILE_NAME);
+
+
+        if (!norFile.delete()) {
+            Log.e(TAG, "Error deleting nor file");
+        }
+
+        if (!stateFile.delete()) {
+            Log.e(TAG, "Error deleting state file");
+        }
+
+        initEmulation();
+        NC1020JNI.reset();
     }
 
     private int getScreenWidth() {
@@ -299,7 +339,6 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
             lastFrameTime = now;
             frames = 0;
         }
-
     }
 
     @Override

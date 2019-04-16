@@ -31,60 +31,55 @@ static const uint16_t RESET_VEC = 0xFFFC;
 
 static const uint64_t VERSION = 0x06;
 
-static const char *ROM_FILE_NAME = "obj_lu.bin";
-static const char *NOR_FILE_NAME = "nc1020.fls";
-static const char *STATE_FILE_NAME = "nc1020.sts";
-
 static const int MAX_FILE_NAME_LENGTH = 255;
 
-static char rom_file_path[MAX_FILE_NAME_LENGTH];
-static char nor_file_path[MAX_FILE_NAME_LENGTH];
-static char state_file_path[MAX_FILE_NAME_LENGTH];
+static char _rom_file_path[MAX_FILE_NAME_LENGTH];
+static char _nor_file_path[MAX_FILE_NAME_LENGTH];
+static char _state_file_path[MAX_FILE_NAME_LENGTH];
 
-static uint8_t rom_buff[ROM_SIZE];
-static uint8_t nor_buff[NOR_SIZE];
+static uint8_t _rom_buff[ROM_SIZE];
+static uint8_t _nor_buff[NOR_SIZE];
 
-static uint8_t* nor_banks[0x20];
+static uint8_t *_nor_banks[0x20];
 
-static uint8_t* memmap[8];
-static nc1020_states_t nc1020_states;
+static uint8_t *_memmap[8];
+static nc1020_states_t _nc1020_states;
 
-static uint8_t* ram_buff;
-static uint8_t* ram_page0;
-static uint8_t* ram_page2;
-static uint8_t* ram_page3;
+static uint8_t *_ram_buff;
+static uint8_t *_ram_page0;
+static uint8_t *_ram_page2;
+static uint8_t *_ram_page3;
 
-static uint8_t* clock_buff;
+static uint8_t *_clock_buff;
 
-static uint8_t* jg_wav_buff;
+static uint8_t *_jg_wav_buff;
 
-static uint8_t* bak_40;
-static uint8_t* fp_buff;
+static uint8_t *_fp_buff;
 
-static uint8_t* keypad_matrix;
+static uint8_t *_keypad_matrix;
 
 static void adjust_time(){
-    if (++ clock_buff[0] >= 60) {
-        clock_buff[0] = 0;
-        if (++ clock_buff[1] >= 60) {
-            clock_buff[1] = 0;
-            if (++ clock_buff[2] >= 24) {
-                clock_buff[2] &= 0xC0u;
-                ++ clock_buff[3];
+    if (++ _clock_buff[0] >= 60) {
+        _clock_buff[0] = 0;
+        if (++ _clock_buff[1] >= 60) {
+            _clock_buff[1] = 0;
+            if (++ _clock_buff[2] >= 24) {
+                _clock_buff[2] &= 0xC0u;
+                ++ _clock_buff[3];
             }
         }
     }
 }
 
 static bool is_count_down(){
-    if (!(clock_buff[10] & 0x02u) ||
-        !(nc1020_states.clock_flags & 0x02u)) {
+    if (!(_clock_buff[10] & 0x02u) ||
+        !(_nc1020_states.clock_flags & 0x02u)) {
         return false;
     }
     return (
-        ((clock_buff[7] & 0x80u) && !(((clock_buff[7] ^ clock_buff[2])) & 0x1Fu)) ||
-        ((clock_buff[6] & 0x80u) && !(((clock_buff[6] ^ clock_buff[1])) & 0x3Fu)) ||
-        ((clock_buff[5] & 0x80u) && !(((clock_buff[5] ^ clock_buff[0])) & 0x3Fu))
+        ((_clock_buff[7] & 0x80u) && !(((_clock_buff[7] ^ _clock_buff[2])) & 0x1Fu)) ||
+        ((_clock_buff[6] & 0x80u) && !(((_clock_buff[6] ^ _clock_buff[1])) & 0x3Fu)) ||
+        ((_clock_buff[5] & 0x80u) && !(((_clock_buff[5] ^ _clock_buff[0])) & 0x3Fu))
         );
 }
 
@@ -103,26 +98,26 @@ static void process_binary(uint8_t *dest, uint8_t *src, uint64_t size){
 
 static void load_rom(){
 	uint8_t* temp_buff = (uint8_t*)malloc(ROM_SIZE);
-	FILE* file = fopen(rom_file_path, "rbe");
+	FILE* file = fopen(_rom_file_path, "rbe");
 	fread(temp_buff, 1, ROM_SIZE, file);
-    process_binary(rom_buff, temp_buff, ROM_SIZE);
+    process_binary(_rom_buff, temp_buff, ROM_SIZE);
 	free(temp_buff);
 	fclose(file);
 }
 
 static void load_nor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
-	FILE* file = fopen(nor_file_path, "rbe");
+	FILE* file = fopen(_nor_file_path, "rbe");
 	fread(temp_buff, 1, NOR_SIZE, file);
-    process_binary(nor_buff, temp_buff, NOR_SIZE);
+    process_binary(_nor_buff, temp_buff, NOR_SIZE);
 	free(temp_buff);
 	fclose(file);
 }
 
 static void save_nor(){
 	uint8_t* temp_buff = (uint8_t*)malloc(NOR_SIZE);
-	FILE* file = fopen(nor_file_path, "wbe");
-    process_binary(temp_buff, nor_buff, NOR_SIZE);
+	FILE* file = fopen(_nor_file_path, "wbe");
+    process_binary(temp_buff, _nor_buff, NOR_SIZE);
 	fwrite(temp_buff, 1, NOR_SIZE, file);
 	fflush(file);
 	free(temp_buff);
@@ -130,7 +125,7 @@ static void save_nor(){
 }
 
 static uint8_t peek_byte(uint16_t addr) {
-	return memmap[addr / 0x2000][addr % 0x2000];
+	return _memmap[addr / 0x2000][addr % 0x2000];
 }
 
 static uint16_t peek_word(uint16_t addr) {
@@ -140,15 +135,15 @@ static uint8_t load(uint16_t addr) {
 	if (addr < IO_LIMIT) {
 		return read_io((uint8_t) addr);
 	}
-	if (((nc1020_states.fp_step == 4 && nc1020_states.fp_type == 2) ||
-		(nc1020_states.fp_step == 6 && nc1020_states.fp_type == 3)) &&
+	if (((_nc1020_states.fp_step == 4 && _nc1020_states.fp_type == 2) ||
+		(_nc1020_states.fp_step == 6 && _nc1020_states.fp_type == 3)) &&
 		(addr >= 0x4000 && addr < 0xC000)) {
-		nc1020_states.fp_step = 0;
+		_nc1020_states.fp_step = 0;
 		return 0x88;
 	}
-	if (addr == 0x45F && nc1020_states.pending_wake_up) {
-		nc1020_states.pending_wake_up = false;
-		memmap[0][0x45F] = nc1020_states.wake_up_flags;
+	if (addr == 0x45F && _nc1020_states.pending_wake_up) {
+		_nc1020_states.pending_wake_up = false;
+		_memmap[0][0x45F] = _nc1020_states.wake_up_flags;
 	}
 	return peek_byte(addr);
 }
@@ -159,11 +154,11 @@ static void store(uint16_t addr, uint8_t value) {
 		return;
 	}
 	if (addr < 0x4000) {
-        memmap[addr / 0x2000][addr % 0x2000] = value;
+        _memmap[addr / 0x2000][addr % 0x2000] = value;
 		return;
 	}
-	uint8_t* page = memmap[addr >> 13u];
-	if (page == ram_page2 || page == ram_page3) {
+	uint8_t* page = _memmap[addr >> 13u];
+	if (page == _ram_page2 || page == _ram_page3) {
 		page[addr & 0x1FFFu] = value;
 		return;
 	}
@@ -179,182 +174,180 @@ static void store(uint16_t addr, uint8_t value) {
         return;
     }
 
-    uint8_t* bank = nor_banks[bank_idx];
+    uint8_t* bank = _nor_banks[bank_idx];
 
-    if (nc1020_states.fp_step == 0) {
+    if (_nc1020_states.fp_step == 0) {
         if (addr == 0x5555 && value == 0xAA) {
-            nc1020_states.fp_step = 1;
+            _nc1020_states.fp_step = 1;
         }
         return;
     }
-    if (nc1020_states.fp_step == 1) {
+    if (_nc1020_states.fp_step == 1) {
         if (addr == 0xAAAA && value == 0x55) {
-        	nc1020_states.fp_step = 2;
+        	_nc1020_states.fp_step = 2;
             return;
         }
-    } else if (nc1020_states.fp_step == 2) {
+    } else if (_nc1020_states.fp_step == 2) {
         if (addr == 0x5555) {
             switch (value) {
-                case 0x90: nc1020_states.fp_type = 1; break;
-                case 0xA0: nc1020_states.fp_type = 2; break;
-                case 0x80: nc1020_states.fp_type = 3; break;
-                case 0xA8: nc1020_states.fp_type = 4; break;
-                case 0x88: nc1020_states.fp_type = 5; break;
-                case 0x78: nc1020_states.fp_type = 6; break;
+                case 0x90: _nc1020_states.fp_type = 1; break;
+                case 0xA0: _nc1020_states.fp_type = 2; break;
+                case 0x80: _nc1020_states.fp_type = 3; break;
+                case 0xA8: _nc1020_states.fp_type = 4; break;
+                case 0x88: _nc1020_states.fp_type = 5; break;
+                case 0x78: _nc1020_states.fp_type = 6; break;
                 default:break;
             }
-            if (nc1020_states.fp_type) {
-                if (nc1020_states.fp_type == 1) {
-                    nc1020_states.fp_bank_idx = bank_idx;
-                    nc1020_states.fp_bak1 = bank[0x4000];
-                    nc1020_states.fp_bak1 = bank[0x4001];
+            if (_nc1020_states.fp_type) {
+                if (_nc1020_states.fp_type == 1) {
+                    _nc1020_states.fp_bank_idx = bank_idx;
+                    _nc1020_states.fp_bak1 = bank[0x4000];
+                    _nc1020_states.fp_bak1 = bank[0x4001];
                 }
-                nc1020_states.fp_step = 3;
+                _nc1020_states.fp_step = 3;
                 return;
             }
         }
-    } else if (nc1020_states.fp_step == 3) {
-        if (nc1020_states.fp_type == 1) {
+    } else if (_nc1020_states.fp_step == 3) {
+        if (_nc1020_states.fp_type == 1) {
             if (value == 0xF0) {
-                bank[0x4000] = nc1020_states.fp_bak1;
-                bank[0x4001] = nc1020_states.fp_bak2;
-                nc1020_states.fp_step = 0;
+                bank[0x4000] = _nc1020_states.fp_bak1;
+                bank[0x4001] = _nc1020_states.fp_bak2;
+                _nc1020_states.fp_step = 0;
                 return;
             }
-        } else if (nc1020_states.fp_type == 2) {
+        } else if (_nc1020_states.fp_type == 2) {
             bank[addr - 0x4000] &= value;
-            nc1020_states.fp_step = 4;
+            _nc1020_states.fp_step = 4;
             return;
-        } else if (nc1020_states.fp_type == 4) {
-            fp_buff[addr & 0xFFu] &= value;
-            nc1020_states.fp_step = 4;
+        } else if (_nc1020_states.fp_type == 4) {
+            _fp_buff[addr & 0xFFu] &= value;
+            _nc1020_states.fp_step = 4;
             return;
-        } else if (nc1020_states.fp_type == 3 || nc1020_states.fp_type == 5) {
+        } else if (_nc1020_states.fp_type == 3 || _nc1020_states.fp_type == 5) {
             if (addr == 0x5555 && value == 0xAA) {
-                nc1020_states.fp_step = 4;
+                _nc1020_states.fp_step = 4;
                 return;
             }
         }
-    } else if (nc1020_states.fp_step == 4) {
-        if (nc1020_states.fp_type == 3 || nc1020_states.fp_type == 5) {
+    } else if (_nc1020_states.fp_step == 4) {
+        if (_nc1020_states.fp_type == 3 || _nc1020_states.fp_type == 5) {
             if (addr == 0xAAAA && value == 0x55) {
-                nc1020_states.fp_step = 5;
+                _nc1020_states.fp_step = 5;
                 return;
             }
         }
-    } else if (nc1020_states.fp_step == 5) {
+    } else if (_nc1020_states.fp_step == 5) {
         if (addr == 0x5555 && value == 0x10) {
         	for (uint64_t i=0; i<0x20; i++) {
-                memset(nor_banks[i], 0xFF, 0x8000);
+                memset(_nor_banks[i], 0xFF, 0x8000);
             }
-            if (nc1020_states.fp_type == 5) {
-                memset(fp_buff, 0xFF, 0x100);
+            if (_nc1020_states.fp_type == 5) {
+                memset(_fp_buff, 0xFF, 0x100);
             }
-            nc1020_states.fp_step = 6;
+            _nc1020_states.fp_step = 6;
             return;
         }
-        if (nc1020_states.fp_type == 3) {
+        if (_nc1020_states.fp_type == 3) {
             if (value == 0x30) {
                 memset(bank + (addr - (addr % 0x800) - 0x4000), 0xFF, 0x800);
-                nc1020_states.fp_step = 6;
+                _nc1020_states.fp_step = 6;
                 return;
             }
-        } else if (nc1020_states.fp_type == 5) {
+        } else if (_nc1020_states.fp_type == 5) {
             if (value == 0x48) {
-                memset(fp_buff, 0xFF, 0x100);
-                nc1020_states.fp_step = 6;
+                memset(_fp_buff, 0xFF, 0x100);
+                _nc1020_states.fp_step = 6;
                 return;
             }
         }
     }
     if (addr == 0x8000 && value == 0xF0) {
-        nc1020_states.fp_step = 0;
+        _nc1020_states.fp_step = 0;
         return;
     }
     printf("error occurs when operate in flash!");
 }
 
-void initialize(const char *path) {
-    snprintf(rom_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, ROM_FILE_NAME);
-    snprintf(nor_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, NOR_FILE_NAME);
-    snprintf(state_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, STATE_FILE_NAME);
+void initialize(const char *rom_file_path, const char *nor_file_path, const char *state_file_path) {
+    strncpy(_rom_file_path, rom_file_path, MAX_FILE_NAME_LENGTH);
+    strncpy(_nor_file_path, nor_file_path, MAX_FILE_NAME_LENGTH);
+    strncpy(_state_file_path, state_file_path, MAX_FILE_NAME_LENGTH);
 
-    ram_buff = nc1020_states.ram;
-    ram_page0 = ram_buff;
-    ram_page2 = ram_buff + 0x4000;
-    ram_page3 = ram_buff + 0x6000;
-    clock_buff = nc1020_states.clock_data;
-    jg_wav_buff = nc1020_states.jg_wav_data;
-    bak_40 = nc1020_states.bak_40;
-    fp_buff = nc1020_states.fp_buff;
-    keypad_matrix = nc1020_states.keypad_matrix;
+    _ram_buff = _nc1020_states.ram;
+    _ram_page0 = _ram_buff;
+    _ram_page2 = _ram_buff + 0x4000;
+    _ram_page3 = _ram_buff + 0x6000;
+    _clock_buff = _nc1020_states.clock_data;
+    _jg_wav_buff = _nc1020_states.jg_wav_data;
+    _fp_buff = _nc1020_states.fp_buff;
+    _keypad_matrix = _nc1020_states.keypad_matrix;
 
 	for (uint64_t i=0; i<0x20; i++) {
-		nor_banks[i] = nor_buff + (0x8000 * i);
+		_nor_banks[i] = _nor_buff + (0x8000 * i);
 	}
 
-
     init_6502(peek_byte, load, store);
-    init_nc1020_io(&nc1020_states, rom_buff, nor_buff, memmap);
+    init_nc1020_io(&_nc1020_states, _rom_buff, _nor_buff, _memmap);
 
     load_rom();
 }
 
 static void reset_states(){
-	nc1020_states.version = VERSION;
+	_nc1020_states.version = VERSION;
 
-	memset(ram_buff, 0, 0x8000);
-	memmap[0] = ram_page0;
-	memmap[2] = ram_page2;
+	memset(_ram_buff, 0, 0x8000);
+	_memmap[0] = _ram_page0;
+	_memmap[2] = _ram_page2;
     switch_volume();
 
-	memset(keypad_matrix, 0, 8);
+	memset(_keypad_matrix, 0, 8);
 
-	memset(clock_buff, 0, 80);
-	nc1020_states.clock_flags = 0;
+	memset(_clock_buff, 0, 80);
+	_nc1020_states.clock_flags = 0;
 
-	nc1020_states.timer0_toggle = false;
+	_nc1020_states.timer0_toggle = false;
 
-	memset(jg_wav_buff, 0, 0x20);
-	nc1020_states.jg_wav_flags = 0;
-	nc1020_states.jg_wav_idx = 0;
+	memset(_jg_wav_buff, 0, 0x20);
+	_nc1020_states.jg_wav_flags = 0;
+	_nc1020_states.jg_wav_idx = 0;
 
-	nc1020_states.should_wake_up = false;
-	nc1020_states.pending_wake_up = false;
+	_nc1020_states.should_wake_up = false;
+	_nc1020_states.pending_wake_up = false;
 
-	memset(fp_buff, 0, 0x100);
-	nc1020_states.fp_step = 0;
+	memset(_fp_buff, 0, 0x100);
+	_nc1020_states.fp_step = 0;
 
-	nc1020_states.should_irq = false;
+	_nc1020_states.should_irq = false;
 
-	nc1020_states.cycles = 0;
-	nc1020_states.cpu.reg_a = 0;
-	nc1020_states.cpu.reg_ps = 0x24;
-	nc1020_states.cpu.reg_x = 0;
-	nc1020_states.cpu.reg_y = 0;
-	nc1020_states.cpu.reg_sp = 0xFF;
-	nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
-	nc1020_states.timer0_cycles = CYCLES_TIMER0;
-	nc1020_states.timer1_cycles = CYCLES_TIMER1;
+	_nc1020_states.cycles = 0;
+	_nc1020_states.cpu.reg_a = 0;
+	_nc1020_states.cpu.reg_ps = 0x24;
+	_nc1020_states.cpu.reg_x = 0;
+	_nc1020_states.cpu.reg_y = 0;
+	_nc1020_states.cpu.reg_sp = 0xFF;
+	_nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
+	_nc1020_states.timer0_cycles = CYCLES_TIMER0;
+	_nc1020_states.timer1_cycles = CYCLES_TIMER1;
 }
 
 static void load_states(){
     reset_states();
-	FILE* file = fopen(state_file_path, "rbe");
+	FILE* file = fopen(_state_file_path, "rbe");
 	if (file == NULL) {
 		return;
 	}
-	fread(&nc1020_states, 1, sizeof(nc1020_states), file);
+	fread(&_nc1020_states, 1, sizeof(_nc1020_states), file);
 	fclose(file);
-	if (nc1020_states.version != VERSION) {
+	if (_nc1020_states.version != VERSION) {
 		return;
 	}
     switch_volume();
 }
 
 static void save_states(){
-	FILE* file = fopen(state_file_path, "wbe");
-	fwrite(&nc1020_states, 1, sizeof(nc1020_states), file);
+	FILE* file = fopen(_state_file_path, "wbe");
+	fwrite(&_nc1020_states, 1, sizeof(_nc1020_states), file);
 	fflush(file);
 	fclose(file);
 }
@@ -374,11 +367,6 @@ void save_nc1020(){
     save_states();
 }
 
-void delete_state_and_nor() {
-    remove(nor_file_path);
-    remove(state_file_path);
-}
-
 void set_key(uint8_t key_id, bool down_or_up){
 	uint8_t row = (uint8_t) (key_id % 8u);
 	uint8_t col = (uint8_t) (key_id / 8u);
@@ -387,32 +375,32 @@ void set_key(uint8_t key_id, bool down_or_up){
 		bits = 0xFE;
 	}
 	if (down_or_up) {
-		keypad_matrix[row] |= bits;
+		_keypad_matrix[row] |= bits;
 	} else {
-		keypad_matrix[row] &= ~bits;
+		_keypad_matrix[row] &= ~bits;
 	}
 
 	if (down_or_up) {
-		if (nc1020_states.slept) {
+		if (_nc1020_states.slept) {
 			if (key_id >= 0x08 && key_id <= 0x0F && key_id != 0x0E) {
                 switch (key_id) {
-                    case 0x08: nc1020_states.wake_up_flags = 0x00; break;
-                    case 0x09: nc1020_states.wake_up_flags = 0x0A; break;
-                    case 0x0A: nc1020_states.wake_up_flags = 0x08; break;
-                    case 0x0B: nc1020_states.wake_up_flags = 0x06; break;
-                    case 0x0C: nc1020_states.wake_up_flags = 0x04; break;
-                    case 0x0D: nc1020_states.wake_up_flags = 0x02; break;
-                    case 0x0E: nc1020_states.wake_up_flags = 0x0C; break;
-                    case 0x0F: nc1020_states.wake_up_flags = 0x00; break;
+                    case 0x08: _nc1020_states.wake_up_flags = 0x00; break;
+                    case 0x09: _nc1020_states.wake_up_flags = 0x0A; break;
+                    case 0x0A: _nc1020_states.wake_up_flags = 0x08; break;
+                    case 0x0B: _nc1020_states.wake_up_flags = 0x06; break;
+                    case 0x0C: _nc1020_states.wake_up_flags = 0x04; break;
+                    case 0x0D: _nc1020_states.wake_up_flags = 0x02; break;
+                    case 0x0E: _nc1020_states.wake_up_flags = 0x0C; break;
+                    case 0x0F: _nc1020_states.wake_up_flags = 0x00; break;
                     default:break;
                 }
-				nc1020_states.should_wake_up = true;
-				nc1020_states.pending_wake_up = true;
-				nc1020_states.slept = false;
+				_nc1020_states.should_wake_up = true;
+				_nc1020_states.pending_wake_up = true;
+				_nc1020_states.slept = false;
 			}
 		} else {
 			if (key_id == 0x0F) {
-				nc1020_states.slept = true;
+				_nc1020_states.slept = true;
 			}
 		}
 	}
@@ -433,12 +421,12 @@ void sync_time() {
 }
 
 uint64_t get_cycles() {
-    return nc1020_states.cycles;
+    return _nc1020_states.cycles;
 }
 
 bool copy_lcd_buffer(uint8_t *buffer){
-	if (nc1020_states.lcd_addr == 0) return false;
-	memcpy(buffer, ram_buff + nc1020_states.lcd_addr, 1600);
+	if (_nc1020_states.lcd_addr == 0) return false;
+	memcpy(buffer, _ram_buff + _nc1020_states.lcd_addr, 1600);
 	return true;
 }
 
@@ -448,45 +436,45 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
     uint64_t cycles = 0;
 
 	while (cycles < end_cycles) {
-		cycles += execute_6502(&nc1020_states.cpu);
-		if (cycles >= nc1020_states.timer0_cycles) {
-			nc1020_states.timer0_cycles += CYCLES_TIMER0;
-			nc1020_states.timer0_toggle = !nc1020_states.timer0_toggle;
-			if (!nc1020_states.timer0_toggle) {
+		cycles += execute_6502(&_nc1020_states.cpu);
+		if (cycles >= _nc1020_states.timer0_cycles) {
+			_nc1020_states.timer0_cycles += CYCLES_TIMER0;
+			_nc1020_states.timer0_toggle = !_nc1020_states.timer0_toggle;
+			if (!_nc1020_states.timer0_toggle) {
                 adjust_time();
 			}
-			if (!is_count_down() || nc1020_states.timer0_toggle) {
+			if (!is_count_down() || _nc1020_states.timer0_toggle) {
 				write_io(0x3D, 0);
 			} else {
                 write_io(0x3D, 0x20);
-				nc1020_states.clock_flags &= 0xFD;
+				_nc1020_states.clock_flags &= 0xFD;
 			}
-			nc1020_states.should_irq = true;
+			_nc1020_states.should_irq = true;
 		}
-		if (nc1020_states.should_irq) {
-			nc1020_states.should_irq = false;
-			cycles += do_irq(&nc1020_states.cpu);
+		if (_nc1020_states.should_irq) {
+			_nc1020_states.should_irq = false;
+			cycles += do_irq(&_nc1020_states.cpu);
 		}
-		if (cycles >= nc1020_states.timer1_cycles) {
+		if (cycles >= _nc1020_states.timer1_cycles) {
 			if (speed_up) {
-				nc1020_states.timer1_cycles += CYCLES_TIMER1_SPEED_UP;
+				_nc1020_states.timer1_cycles += CYCLES_TIMER1_SPEED_UP;
 			} else {
-				nc1020_states.timer1_cycles += CYCLES_TIMER1;
+				_nc1020_states.timer1_cycles += CYCLES_TIMER1;
 			}
-			clock_buff[4] ++;
-			if (nc1020_states.should_wake_up) {
-				nc1020_states.should_wake_up = false;
+			_clock_buff[4] ++;
+			if (_nc1020_states.should_wake_up) {
+				_nc1020_states.should_wake_up = false;
                 write_io(0x01, (uint8_t) (read_io(0x01) | 0x01u));
                 write_io(0x02, (uint8_t) (read_io(0x02) | 0x01u));
-				nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
+				_nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
 			} else {
                 write_io(0x01, (uint8_t) (read_io(0x01) | 0x08u));
-				nc1020_states.should_irq = true;
+				_nc1020_states.should_irq = true;
 			}
 		}
 	}
 
-	nc1020_states.cycles += cycles;
-	nc1020_states.timer0_cycles -= end_cycles;
-	nc1020_states.timer1_cycles -= end_cycles;
+	_nc1020_states.cycles += cycles;
+	_nc1020_states.timer0_cycles -= end_cycles;
+	_nc1020_states.timer1_cycles -= end_cycles;
 }
