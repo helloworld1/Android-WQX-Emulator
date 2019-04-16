@@ -269,6 +269,24 @@ static void store(uint16_t addr, uint8_t value) {
     printf("error occurs when operate in flash!");
 }
 
+static void sync_time() {
+    time_t time_raw_format;
+    struct tm * ptr_time;
+    time ( &time_raw_format );
+    ptr_time = localtime ( &time_raw_format );
+    store(1138, (uint8_t) (1900 + ptr_time -> tm_year - 1881));
+    store(1139, (uint8_t) (ptr_time -> tm_mon + 1));
+    store(1140, (uint8_t) (ptr_time -> tm_mday + 1));
+    store(1141, (uint8_t) (ptr_time -> tm_wday));
+    store(1135, (uint8_t) (ptr_time -> tm_hour));
+    store(1136, (uint8_t) (ptr_time -> tm_min));
+    store(1137, (uint8_t) (ptr_time -> tm_sec / 2));
+
+    _clock_buff[0] = (uint8_t) ptr_time -> tm_sec;
+    _clock_buff[1] = (uint8_t) ptr_time -> tm_min;
+    _clock_buff[2] = (uint8_t) ptr_time -> tm_hour;
+}
+
 void initialize(const char *rom_file_path, const char *nor_file_path, const char *state_file_path) {
     strncpy(_rom_file_path, rom_file_path, MAX_FILE_NAME_LENGTH);
     strncpy(_nor_file_path, nor_file_path, MAX_FILE_NAME_LENGTH);
@@ -360,6 +378,7 @@ void reset() {
 void load_nc1020(){
     load_nor();
     load_states();
+    sync_time();
 }
 
 void save_nc1020(){
@@ -404,20 +423,6 @@ void set_key(uint8_t key_id, bool down_or_up){
 			}
 		}
 	}
-}
-
-void sync_time() {
-    time_t time_raw_format;
-    struct tm * ptr_time;
-    time ( &time_raw_format );
-    ptr_time = localtime ( &time_raw_format );
-    store(1138, (uint8_t) (1900 + ptr_time -> tm_year - 1881));
-    store(1139, (uint8_t) (ptr_time -> tm_mon + 1));
-    store(1140, (uint8_t) (ptr_time -> tm_mday + 1));
-    store(1141, (uint8_t) (ptr_time -> tm_wday));
-    store(1135, (uint8_t) (ptr_time -> tm_hour));
-    store(1136, (uint8_t) (ptr_time -> tm_min));
-    store(1137, (uint8_t) (ptr_time -> tm_sec / 2));
 }
 
 uint64_t get_cycles() {
