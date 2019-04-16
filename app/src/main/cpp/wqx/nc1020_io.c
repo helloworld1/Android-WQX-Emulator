@@ -33,34 +33,6 @@ static uint8_t* fp_buff;
 
 static uint8_t* keypad_matrix;
 
-
-void init_nc1020_io(nc1020_states_t *states, uint8_t rom_buff[], uint8_t nor_buff[], uint8_t* mmap[8]) {
-    nc1020_states = states;
-
-    ram_buff = nc1020_states -> ram;
-    ram_io = ram_buff;
-    ram_40 = ram_buff + 0x40;
-    ram_page0 = ram_buff;
-    ram_page1 = ram_buff + 0x2000;
-    ram_page2 = ram_buff + 0x4000;
-    ram_page3 = ram_buff + 0x6000;
-    clock_buff = nc1020_states -> clock_data;
-    jg_wav_buff = nc1020_states -> jg_wav_data;
-    bak_40 = nc1020_states -> bak_40;
-    fp_buff = nc1020_states -> fp_buff;
-    keypad_matrix = nc1020_states -> keypad_matrix;
-    memmap = mmap;
-
-    for (uint64_t i=0; i<0x100; i++) {
-        rom_volume0[i] = rom_buff + (0x8000 * i);
-        rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
-        rom_volume2[i] = rom_buff + (0x8000 * (0x200 + i));
-    }
-    for (uint64_t i=0; i<0x20; i++) {
-        nor_banks[i] = nor_buff + (0x8000 * i);
-    }
-}
-
 static uint8_t* get_bank(uint8_t bank_idx){
     uint8_t volume_idx = ram_io[0x0D];
     if (bank_idx < 0x20) {
@@ -279,7 +251,6 @@ static void write_io_23_jg_wav(uint8_t addr, uint8_t value){
     }
 }
 
-// clock.
 static void write_io_3f_clock(uint8_t addr, uint8_t value){
     ram_io[addr] = value;
     uint8_t idx = ram_io[0x3E];
@@ -300,6 +271,34 @@ static void write_io_3f_clock(uint8_t addr, uint8_t value){
         }
     }
 }
+
+void init_nc1020_io(nc1020_states_t *states, uint8_t rom_buff[], uint8_t nor_buff[], uint8_t* mmap[8]) {
+    nc1020_states = states;
+
+    ram_buff = nc1020_states -> ram;
+    ram_io = ram_buff;
+    ram_40 = ram_buff + 0x40;
+    ram_page0 = ram_buff;
+    ram_page1 = ram_buff + 0x2000;
+    ram_page2 = ram_buff + 0x4000;
+    ram_page3 = ram_buff + 0x6000;
+    clock_buff = nc1020_states -> clock_data;
+    jg_wav_buff = nc1020_states -> jg_wav_data;
+    bak_40 = nc1020_states -> bak_40;
+    fp_buff = nc1020_states -> fp_buff;
+    keypad_matrix = nc1020_states -> keypad_matrix;
+    memmap = mmap;
+
+    for (uint64_t i=0; i<0x100; i++) {
+        rom_volume0[i] = rom_buff + (0x8000 * i);
+        rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
+        rom_volume2[i] = rom_buff + (0x8000 * (0x200 + i));
+    }
+    for (uint64_t i=0; i<0x20; i++) {
+        nor_banks[i] = nor_buff + (0x8000 * i);
+    }
+}
+
 
 uint8_t read_io(uint8_t addr) {
     switch (addr) {
@@ -351,4 +350,3 @@ uint8_t write_io(uint8_t addr, uint8_t value) {
             write_io_generic(addr, value);
     }
 }
-

@@ -44,21 +44,13 @@ static char state_file_path[MAX_FILE_NAME_LENGTH];
 static uint8_t rom_buff[ROM_SIZE];
 static uint8_t nor_buff[NOR_SIZE];
 
-static uint8_t* rom_volume0[0x100];
-static uint8_t* rom_volume1[0x100];
-static uint8_t* rom_volume2[0x100];
-
 static uint8_t* nor_banks[0x20];
-static uint8_t* bbs_pages[0x10];
 
 static uint8_t* memmap[8];
 static nc1020_states_t nc1020_states;
 
 static uint8_t* ram_buff;
-static uint8_t* ram_io;
-static uint8_t* ram_40;
 static uint8_t* ram_page0;
-static uint8_t* ram_page1;
 static uint8_t* ram_page2;
 static uint8_t* ram_page3;
 
@@ -182,7 +174,7 @@ static void store(uint16_t addr, uint8_t value) {
     // write to nor_flash address space.
     // there must select a nor_bank.
 
-    uint8_t bank_idx = ram_io[0x00];
+    uint8_t bank_idx = read_io(0x00);
     if (bank_idx >= 0x20) {
         return;
     }
@@ -288,10 +280,7 @@ void initialize(const char *path) {
     snprintf(state_file_path, MAX_FILE_NAME_LENGTH, "%s/%s", path, STATE_FILE_NAME);
 
     ram_buff = nc1020_states.ram;
-    ram_io = ram_buff;
-    ram_40 = ram_buff + 0x40;
     ram_page0 = ram_buff;
-    ram_page1 = ram_buff + 0x2000;
     ram_page2 = ram_buff + 0x4000;
     ram_page3 = ram_buff + 0x6000;
     clock_buff = nc1020_states.clock_data;
@@ -300,11 +289,6 @@ void initialize(const char *path) {
     fp_buff = nc1020_states.fp_buff;
     keypad_matrix = nc1020_states.keypad_matrix;
 
-	for (uint64_t i=0; i<0x100; i++) {
-		rom_volume0[i] = rom_buff + (0x8000 * i);
-		rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
-		rom_volume2[i] = rom_buff + (0x8000 * (0x200 + i));
-	}
 	for (uint64_t i=0; i<0x20; i++) {
 		nor_banks[i] = nor_buff + (0x8000 * i);
 	}
@@ -472,9 +456,9 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
                 adjust_time();
 			}
 			if (!is_count_down() || nc1020_states.timer0_toggle) {
-				ram_io[0x3D] = 0;
+				write_io(0x3D, 0);
 			} else {
-				ram_io[0x3D] = 0x20;
+                write_io(0x3D, 0x20);
 				nc1020_states.clock_flags &= 0xFD;
 			}
 			nc1020_states.should_irq = true;
@@ -492,11 +476,11 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
 			clock_buff[4] ++;
 			if (nc1020_states.should_wake_up) {
 				nc1020_states.should_wake_up = false;
-				ram_io[0x01] |= 0x01;
-				ram_io[0x02] |= 0x01;
+                write_io(0x01, (uint8_t) (read_io(0x01) | 0x01u));
+                write_io(0x02, (uint8_t) (read_io(0x02) | 0x01u));
 				nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
 			} else {
-				ram_io[0x01] |= 0x08;
+                write_io(0x01, (uint8_t) (read_io(0x01) | 0x08u));
 				nc1020_states.should_irq = true;
 			}
 		}
