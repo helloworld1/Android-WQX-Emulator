@@ -13,6 +13,7 @@ obj/
 .classpath
 build/
 app/build/
+app/release/
 out/
 .externalNativeBuild
 
