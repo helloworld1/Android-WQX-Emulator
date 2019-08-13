@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">文曲星 NC1020</string>
+    <string name="app_name">文曲星模拟器</string>
     <string name="action_restart">重启</string>
     <string name="action_speed_up">加速</string>
     <string name="action_load">读档</string>

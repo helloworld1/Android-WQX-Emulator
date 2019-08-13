@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">WQX NC1020</string>
+    <string name="app_name">WQX Emulator</string>
     <string name="action_restart">Restart</string>
     <string name="action_speed_up">SpeedUp</string>
     <string name="action_load">Load</string>
