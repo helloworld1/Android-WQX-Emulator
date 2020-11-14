@@ -71,22 +71,7 @@ public class MainFragment extends Fragment implements SurfaceHolder.Callback, Ch
                 long startTime = System.currentTimeMillis();
                 NC1020JNI.runTimeSlice((int)interval, speedUp);
 
-                if (NC1020JNI.copyLcdBuffer(lcdBuffer)) {
-                    synchronized (lcdBufferEx) {
-                        for (int y = 0; y < 80; y++) {
-                            for (int j = 0; j < 20; j++) {
-                                byte p = lcdBuffer[20 * y + j];
-                                for (int k = 0; k < 8; k++) {
-                                    lcdBufferEx[y * 160 + j * 8 + k] = (byte) ((p & (1 << (7 - k))) != 0 ? 0xFF
-                                            : 0x00);
-                                }
-                            }
-                        }
-                        for (int y = 0; y < 80; y++) {
-                            lcdBufferEx[y * 160] = 0;
-                        }
-                    }
-                }
+                NC1020JNI.copyLcdBufferEx(lcdBufferEx);
 
                 long elapsed = System.currentTimeMillis() - startTime;
                 if (elapsed < FRAME_INTERVAL) {

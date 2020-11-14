@@ -16,6 +16,7 @@ app/build/
 app/release/
 out/
 .externalNativeBuild
+app/.cxx/
 
 # This contains secrets and should not be checked in!
 AMSecrets.java

@@ -429,14 +429,20 @@ uint64_t get_cycles() {
     return _nc1020_states.cycles;
 }
 
-bool copy_lcd_buffer(uint8_t *buffer){
-	if (_nc1020_states.lcd_addr == 0) return false;
-	memcpy(buffer, _ram_buff + _nc1020_states.lcd_addr, 1600);
-	return true;
+/**
+ * @return The LCD buffer, size is 1600 uint_8
+ */
+uint8_t* get_lcd_buffer(){
+    if (_nc1020_states.lcd_addr == 0)
+        return NULL;
+
+    uint8_t *lcd_buffer = _ram_buff + _nc1020_states.lcd_addr;
+    return lcd_buffer;
 }
 
+
 void run_time_slice(uint64_t time_slice, bool speed_up) {
-	uint64_t end_cycles = time_slice * CYCLES_MS;
+    uint64_t end_cycles = time_slice * CYCLES_MS;
 
     uint64_t cycles = 0;
 

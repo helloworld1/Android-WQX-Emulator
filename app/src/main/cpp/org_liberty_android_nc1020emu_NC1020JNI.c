@@ -42,12 +42,39 @@ JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_runTimeSlice
     run_time_slice((size_t) timeSlice, speedUp);
 }
 
-JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_copyLcdBuffer
+/**
+ * Copy the LCD buffer and convert to Android bitmap format
+ *
+ * @param env JNIEnv
+ * @param type java class
+ * @param buffer The buffer is size of byte[1600 * 8]
+ * @return True if buffer is copied. False if buffer is not copied
+ */
+JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_copyLcdBufferEx
         (JNIEnv *env, jclass type, jbyteArray buffer) {
-    jbyte* pBuffer = (*env)->GetByteArrayElements(env, buffer, NULL);
-    jboolean result = copy_lcd_buffer((uint8_t *) pBuffer);
-    (*env)->ReleaseByteArrayElements(env, buffer, pBuffer, 0);
-    return result;
+    jbyte* buffer_ex= (*env)->GetByteArrayElements(env, buffer, NULL);
+
+    uint8_t* lcd_buffer = get_lcd_buffer();
+
+    if (lcd_buffer == NULL)
+        return false;
+
+    for (int y = 0; y < 80; y++) {
+        for (int j = 0; j < 20; j++) {
+            uint8_t p = lcd_buffer[20 * y + j];
+            for (int k = 0; k < 8; k++) {
+                buffer_ex[y * 160 + j * 8 + k] = ((p & (1u << (7u - k))) != 0 ? 0xFFu : 0x00);
+            }
+        }
+    }
+
+    for (int y = 0; y < 80; y++) {
+        buffer_ex[y * 160] = 0;
+    }
+
+
+    (*env)->ReleaseByteArrayElements(env, buffer, buffer_ex, 0);
+    return true;
 }
 
 JNIEXPORT jlong JNICALL
