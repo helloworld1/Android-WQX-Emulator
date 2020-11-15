@@ -39,6 +39,7 @@ import java.io.IOException
 import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
+import kotlin.math.max
 
 class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val lcdBufferEx = ByteArray(1600 * 8)
@@ -51,7 +52,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private var lastFrameTime: Long = 0
     private var lastCycles: Long = 0
     private var frames: Long = 0
-    private var preferences: SharedPreferences? = null
+    private lateinit var preferences: SharedPreferences
+
     private val runnable = Runnable {
         var interval = 0L
         while (isRunning) {
@@ -67,7 +69,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     e.printStackTrace()
                 }
             }
-            interval = Math.max(elapsed, FRAME_INTERVAL.toLong())
+            interval = max(elapsed, FRAME_INTERVAL.toLong())
         }
         if (saveStatesSetting) {
             save()
@@ -183,7 +185,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     }
 
     private val saveStatesSetting: Boolean
-        get() = preferences!!.getBoolean(SAVE_STATES_KEY, true)
+        get() = preferences.getBoolean(SAVE_STATES_KEY, true)
 
     private fun showFactoryResetDialog() {
         AlertDialog.Builder(requireContext())
