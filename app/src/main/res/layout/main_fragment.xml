@@ -26,11 +26,11 @@
     </androidx.appcompat.widget.Toolbar>
 
     <SurfaceView
-        android:id="@+id/lcd"
+        android:id="@+id/lcd_surface"
         android:layout_width="0dp"
         android:layout_height="0dp" />
     <TextView
-        android:id="@+id/info"
+        android:id="@+id/info_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="12sp"/>
