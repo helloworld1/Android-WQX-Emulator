@@ -15,5 +15,7 @@ target_link_libraries(
         android
         log)
 
+set_target_properties(nc1020 PROPERTIES LINK_FLAGS "-Wl,-z,max-page-size=16384")
+
 set_property(TARGET nc1020 PROPERTY C_STANDARD 11)
 
