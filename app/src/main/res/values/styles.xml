@@ -1,11 +1,11 @@
 <resources>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
     </style>
     <style name="ToolbarStyle">
-        <item name="popupTheme">@style/ThemeOverlay.AppCompat.Light</item>
+        <item name="android:theme">@style/ThemeOverlay.Material3.Dark</item>
+        <item name="popupTheme">@style/ThemeOverlay.Material3.Light</item>
         <item name="android:background">?attr/colorPrimary</item>
     </style>
 </resources>
