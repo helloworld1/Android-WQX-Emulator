@@ -9,6 +9,7 @@ repositories {
 android {
     namespace 'org.liberty.android.nc1020emu'
     compileSdk 35
+    ndkVersion "29.0.14206865"
 
     defaultConfig {
         minSdk 21
