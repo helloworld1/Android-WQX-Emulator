@@ -32,7 +32,8 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
-import kotlinx.android.synthetic.main.main_fragment.*
+import android.view.SurfaceView
+import android.widget.TextView
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -53,6 +54,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private var lastCycles: Long = 0
     private var frames: Long = 0
     private lateinit var preferences: SharedPreferences
+    private lateinit var keypadLayout: KeypadLayout
+    private lateinit var lcdSurface: SurfaceView
+    private lateinit var infoText: TextView
 
     private val runnable = Runnable {
         var interval = 0L
@@ -82,8 +86,11 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        preferences = PreferenceManager.getDefaultSharedPreferences(activity)
-        keypad_layout.setOnButtonTouchListener(object : OnButtonPressedListener {
+        preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        keypadLayout = view.findViewById(R.id.keypad_layout)
+        lcdSurface = view.findViewById(R.id.lcd_surface)
+        infoText = view.findViewById(R.id.info_text)
+        keypadLayout.setOnButtonTouchListener(object : OnButtonPressedListener {
             override fun onKeyDown(keyCode: Int) {
                 setKey(keyCode, true)
             }
@@ -96,8 +103,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         displayScale = width.toFloat() / 160
         val params = LinearLayout.LayoutParams(width, width / 2)
         params.gravity = Gravity.CENTER_HORIZONTAL
-        lcd_surface.layoutParams = params
-        lcd_surface.holder.addCallback(this)
+        lcdSurface.layoutParams = params
+        lcdSurface.holder.addCallback(this)
         val toolbar: Toolbar = view.findViewById(R.id.toolbar)
         setupToolbar(toolbar)
         initEmulation()
@@ -157,9 +164,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         lcdMatrix.setScale(displayScale, displayScale)
-        val lcdCanvas = lcd_surface.holder.lockCanvas()
+        val lcdCanvas = lcdSurface.holder.lockCanvas()
         lcdCanvas.drawColor(ContextCompat.getColor(requireContext(), R.color.lcd_background))
-        lcd_surface.holder.unlockCanvasAndPost(lcdCanvas)
+        lcdSurface.holder.unlockCanvasAndPost(lcdCanvas)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {}
@@ -246,11 +253,11 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         }
 
     private fun updateLcd() {
-        val lcdCanvas = lcd_surface.holder.lockCanvas() ?: return
+        val lcdCanvas = lcdSurface.holder.lockCanvas() ?: return
         synchronized(lcdBufferEx) { lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx)) }
         lcdCanvas.drawColor(ContextCompat.getColor(requireContext(), R.color.lcd_background))
         lcdCanvas.drawBitmap(lcdBitmap, lcdMatrix, null)
-        lcd_surface.holder.unlockCanvasAndPost(lcdCanvas)
+        lcdSurface.holder.unlockCanvasAndPost(lcdCanvas)
     }
 
     private fun displayPerf() {
@@ -260,7 +267,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         if (elapse > 1000L) {
             val fps = frames * 1000 / elapse
             val percentage = (cycles - lastCycles) * 100 / CYCLES_SECOND
-            info_text.text = String.format(getString(R.string.perf_text), fps, cycles, percentage)
+            infoText.text = String.format(getString(R.string.perf_text), fps, cycles, percentage)
             lastCycles = cycles
             lastFrameTime = now
             frames = 0
