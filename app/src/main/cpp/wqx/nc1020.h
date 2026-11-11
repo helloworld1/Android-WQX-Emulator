@@ -13,5 +13,9 @@ uint8_t* get_lcd_buffer();
 void load_nc1020();
 void save_nc1020();
 uint64_t get_cycles();
+size_t read_nc1020_audio(int16_t *buffer, size_t max_samples);
+void nc1020_tm0_start(uint8_t counter);
+void nc1020_tm0_stop(void);
+void nc1020_tm0_set_counter(uint8_t counter);
 
 #endif /* NC1020_H_ */

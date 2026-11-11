@@ -2,12 +2,18 @@ package org.liberty.android.nc1020emu
 
 import org.liberty.android.nc1020emu.NC1020JNI.runTimeSlice
 import org.liberty.android.nc1020emu.NC1020JNI.copyLcdBufferEx
+import org.liberty.android.nc1020emu.NC1020JNI.readAudioSamples
 import org.liberty.android.nc1020emu.NC1020JNI.save
 import org.liberty.android.nc1020emu.NC1020JNI.setKey
 import org.liberty.android.nc1020emu.NC1020JNI.reset
 import org.liberty.android.nc1020emu.NC1020JNI.load
 import org.liberty.android.nc1020emu.NC1020JNI.initialize
 import org.liberty.android.nc1020emu.NC1020JNI.cycles
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
+import android.os.Build
 import android.view.SurfaceHolder
 import android.view.Choreographer.FrameCallback
 import android.graphics.Bitmap
@@ -46,6 +52,7 @@ import kotlin.math.max
 
 class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val lcdBufferEx = ByteArray(1600 * 8)
+    private val audioBuffer = ShortArray(2048)
     private var lcdBitmap= Bitmap.createBitmap(160, 80, Bitmap.Config.ALPHA_8)
     private var lcdMatrix = Matrix()
     private var speedUp = false
@@ -61,24 +68,35 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private lateinit var infoText: TextView
 
     private val runnable = Runnable {
-        var interval = 0L
-        while (isRunning) {
-            val startTime = System.currentTimeMillis()
-            runTimeSlice(interval.toInt(), speedUp)
-            copyLcdBufferEx(lcdBufferEx)
-            val elapsed = System.currentTimeMillis() - startTime
-            if (elapsed < FRAME_INTERVAL) {
-                try {
-                    // If speedUp, don't sleep, run as much frames as system can
-                    Thread.sleep(if (speedUp) 0 else FRAME_INTERVAL - elapsed)
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
-                }
-            }
-            interval = max(elapsed, FRAME_INTERVAL.toLong())
+        val audioTrack = createAudioTrack()
+        try {
+            audioTrack?.play()
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "Error starting AudioTrack", e)
         }
-        if (saveStatesSetting) {
-            save()
+        var interval = 0L
+        try {
+            while (isRunning) {
+                val startTime = System.currentTimeMillis()
+                runTimeSlice(interval.toInt(), speedUp)
+                copyLcdBufferEx(lcdBufferEx)
+                drainAudio(audioTrack)
+                val elapsed = System.currentTimeMillis() - startTime
+                if (elapsed < FRAME_INTERVAL) {
+                    try {
+                        // If speedUp, don't sleep, run as much frames as system can
+                        Thread.sleep(if (speedUp) 0 else FRAME_INTERVAL - elapsed)
+                    } catch (e: InterruptedException) {
+                        e.printStackTrace()
+                    }
+                }
+                interval = max(elapsed, FRAME_INTERVAL.toLong())
+            }
+            if (saveStatesSetting) {
+                save()
+            }
+        } finally {
+            releaseAudioTrack(audioTrack)
         }
     }
 
@@ -202,6 +220,75 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val saveStatesSetting: Boolean
         get() = preferences.getBoolean(SAVE_STATES_KEY, true)
 
+    private val beepEnabledSetting: Boolean
+        get() = preferences.getBoolean(ENABLE_BEEP_KEY, true)
+
+    private fun createAudioTrack(): AudioTrack? {
+        return try {
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                AUDIO_SAMPLE_RATE,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            if (minBufferSize <= 0) {
+                Log.w(TAG, "Invalid AudioTrack minBufferSize: $minBufferSize")
+                return null
+            }
+            val bufferSizeInBytes = max(minBufferSize * 2, AUDIO_SAMPLE_RATE * 2)
+            val attributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val format = AudioFormat.Builder()
+                .setSampleRate(AUDIO_SAMPLE_RATE)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build()
+            AudioTrack(
+                attributes,
+                format,
+                bufferSizeInBytes,
+                AudioTrack.MODE_STREAM,
+                AudioManager.AUDIO_SESSION_ID_GENERATE
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize AudioTrack", e)
+            null
+        }
+    }
+
+    private fun drainAudio(track: AudioTrack?) {
+        while (true) {
+            val count = readAudioSamples(audioBuffer)
+            if (count <= 0) {
+                break
+            }
+            if (track != null && beepEnabledSetting && !speedUp) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    track.write(audioBuffer, 0, count, AudioTrack.WRITE_NON_BLOCKING)
+                } else {
+                    track.write(audioBuffer, 0, count)
+                }
+            }
+        }
+    }
+
+    private fun releaseAudioTrack(track: AudioTrack?) {
+        if (track == null) {
+            return
+        }
+        try {
+            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                track.pause()
+            }
+            track.flush()
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "Error stopping AudioTrack", e)
+        } finally {
+            track.release()
+        }
+    }
+
     private fun showFactoryResetDialog() {
         AlertDialog.Builder(requireContext())
                 .setTitle(R.string.factory_reset)
@@ -297,5 +384,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         private const val NOR_FILE_NAME = "nc1020.fls"
         private const val STATE_FILE_NAME = "nc1020.sts"
         private const val SAVE_STATES_KEY = "save_states"
+        private const val ENABLE_BEEP_KEY = "enable_beep"
+        private const val AUDIO_SAMPLE_RATE = 48000
     }
 }

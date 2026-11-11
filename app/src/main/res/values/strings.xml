@@ -17,6 +17,10 @@
     <string name="save_states_setting_summary_on">Save states automatically upon exiting</string>
     <string name="save_states_setting_summary_off">Do not save states automatically upon exiting</string>
 
+    <string name="enable_beep_setting">Sound</string>
+    <string name="enable_beep_setting_summary_on">Enable emulator beep, pronunciation, and voice sound</string>
+    <string name="enable_beep_setting_summary_off">Mute emulator beep, pronunciation, and voice sound</string>
+
     <string name="theme_setting_title">Theme</string>
     <string name="theme_follow_system">Follow system</string>
     <string name="theme_dark">Dark</string>

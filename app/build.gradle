@@ -7,14 +7,20 @@ repositories {
 
 android {
     namespace 'org.liberty.android.nc1020emu'
-    compileSdk 35
+    compileSdk 37
     ndkVersion "29.0.14206865"
 
     defaultConfig {
+        applicationId "org.liberty.android.nc1020emu"
         minSdk 21
-        targetSdk 35
+        targetSdk 37
         versionCode 3
         versionName "1.2"
+    }
+
+    buildTypes {
+        debug {
+        }
     }
 
     compileOptions {
@@ -32,6 +38,12 @@ android {
         cmake {
             path file('src/main/cpp/CMakeLists.txt')
         }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.applicationId.set("org.liberty.android.nc1020emudebug")
     }
 }
 

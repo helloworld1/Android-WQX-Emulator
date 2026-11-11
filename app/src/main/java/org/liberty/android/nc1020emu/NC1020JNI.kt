@@ -8,6 +8,7 @@ object NC1020JNI {
     @JvmStatic external fun setKey(keyId: Int, downOrUp: Boolean)
     @JvmStatic external fun runTimeSlice(timeSlice: Int, speedUp: Boolean)
     @JvmStatic external fun copyLcdBufferEx(buffer: ByteArray?): Boolean
+    @JvmStatic external fun readAudioSamples(buffer: ShortArray?): Int
     @JvmStatic val cycles: Long external get
 
     init {

@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <time.h>
 #include "nc1020_states.h"
+#include "nc1020_io.h"
+#include "nc1020.h"
+#include "nc1020_dsp.h"
+#include "nc1020_sound.h"
 
 static nc1020_states_t *_nc1020_states;
 
@@ -24,7 +28,6 @@ static uint8_t *_ram_page2;
 static uint8_t *_ram_page3;
 
 static uint8_t *_clock_buff;
-static uint8_t *_jg_wav_buff;
 static uint8_t *_bak_40;
 static uint8_t *_keypad_matrix;
 
@@ -80,10 +83,6 @@ void switch_volume(){
     switch_bank();
 }
 
-static void generate_and_play_jg_wav(){
-
-}
-
 static uint8_t* get_zero_page_pointer(uint8_t index){
     if (index < 4) {
         return _ram_io;
@@ -94,6 +93,32 @@ static uint8_t* get_zero_page_pointer(uint8_t index){
 
 static uint8_t read_io_generic(uint8_t addr){
     return _ram_io[addr];
+}
+
+static uint8_t read_io_01_int_status(uint8_t addr){
+    uint8_t value = _ram_io[addr];
+    _ram_io[addr] &= ~0x3Fu;
+    return value;
+}
+
+static uint8_t read_io_04_stop_tm0(uint8_t addr){
+    nc1020_tm0_stop();
+    return _ram_io[addr];
+}
+
+static uint8_t read_io_05_start_tm0(uint8_t addr){
+    nc1020_tm0_start(_ram_io[0x02]);
+    return _ram_io[addr];
+}
+
+static uint8_t read_io_20_dsp_stat(uint8_t addr){
+    (void)addr;
+    return dsp_read_stat(_nc1020_states -> cycles);
+}
+
+static uint8_t read_io_21_dsp_ret(uint8_t addr){
+    (void)addr;
+    return dsp_read_ret_data();
 }
 
 static uint8_t read_io_3b_unknown(uint8_t addr){
@@ -118,6 +143,23 @@ static void write_io_00_bank_switch(uint8_t addr, uint8_t value){
     _ram_io[addr] = value;
     if (value != old_value) {
         switch_bank();
+    }
+}
+
+static void write_io_01_int_enable(uint8_t addr, uint8_t value){
+    _ram_io[addr] = (uint8_t) ((_ram_io[addr] & 0x3Fu) | (value & 0xC0u));
+}
+
+static void write_io_02_tm0(uint8_t addr, uint8_t value){
+    _ram_io[addr] = value;
+    nc1020_tm0_set_counter(value);
+}
+
+static void write_io_18_port4(uint8_t addr, uint8_t value){
+    uint8_t old_value = _ram_io[addr];
+    _ram_io[addr] = value;
+    if ((old_value ^ value) & 0x80u) {
+        sound_on_beeper_write(_nc1020_states -> cycles, (value & 0x80u) != 0);
     }
 }
 
@@ -212,38 +254,19 @@ static void write_io_0f_zero_page_bank_switch(uint8_t addr, uint8_t value){
     }
 }
 
-static void write_io_20_jg(uint8_t addr, uint8_t value){
+static void write_io_20_dsp_ctrl(uint8_t addr, uint8_t value){
     _ram_io[addr] = value;
-    if (value == 0x80 || value == 0x40) {
-        memset(_jg_wav_buff, 0, 0x20);
-        _ram_io[0x20] = 0;
-        _nc1020_states -> jg_wav_flags = 1;
-        _nc1020_states -> jg_wav_idx= 0;
-    }
+    dsp_write_ctrl(value);
 }
 
-static void write_io_23_jg_wav(uint8_t addr, uint8_t value){
+static void write_io_22_dsp_low(uint8_t addr, uint8_t value){
     _ram_io[addr] = value;
-    if (value == 0xC2) {
-        _jg_wav_buff[_nc1020_states -> jg_wav_idx] = _ram_io[0x22];
-    } else if (value == 0xC4) {
-        if (_nc1020_states -> jg_wav_idx < 0x20) {
-            _jg_wav_buff[_nc1020_states -> jg_wav_idx] = _ram_io[0x22];
-            _nc1020_states -> jg_wav_idx ++;
-        }
-    } else if (value == 0x80) {
-        _ram_io[0x20] = 0x80;
-        _nc1020_states -> jg_wav_flags = 0;
-        if (_nc1020_states -> jg_wav_idx) {
-            if (!_nc1020_states -> jg_wav_playing) {
-                generate_and_play_jg_wav();
-                _nc1020_states -> jg_wav_idx = 0;
-            }
-        }
-    }
-    if (_nc1020_states -> jg_wav_playing) {
-// todo.
-    }
+    dsp_write_low(value);
+}
+
+static void write_io_23_dsp_high(uint8_t addr, uint8_t value){
+    _ram_io[addr] = value;
+    dsp_write_cmd_high(value, _nc1020_states -> cycles);
 }
 
 static void write_io_3f_clock(uint8_t addr, uint8_t value){
@@ -277,7 +300,6 @@ void init_nc1020_io(nc1020_states_t *states, uint8_t rom_buff[], uint8_t nor_buf
     _ram_page2 = _ram_buff + 0x4000;
     _ram_page3 = _ram_buff + 0x6000;
     _clock_buff = _nc1020_states -> clock_data;
-    _jg_wav_buff = _nc1020_states -> jg_wav_data;
     _bak_40 = _nc1020_states -> bak_40;
     _keypad_matrix = _nc1020_states -> keypad_matrix;
     _memmap = mmap;
@@ -295,6 +317,16 @@ void init_nc1020_io(nc1020_states_t *states, uint8_t rom_buff[], uint8_t nor_buf
 
 uint8_t read_io(uint8_t addr) {
     switch (addr) {
+        case 0x01:
+            return read_io_01_int_status(addr);
+        case 0x04:
+            return read_io_04_stop_tm0(addr);
+        case 0x05:
+            return read_io_05_start_tm0(addr);
+        case 0x20:
+            return read_io_20_dsp_stat(addr);
+        case 0x21:
+            return read_io_21_dsp_ret(addr);
         case 0x3B:
             return read_io_3b_unknown(addr);
         case 0x3F:
@@ -304,10 +336,16 @@ uint8_t read_io(uint8_t addr) {
     }
 }
 
-uint8_t write_io(uint8_t addr, uint8_t value) {
+void write_io(uint8_t addr, uint8_t value) {
     switch (addr) {
         case 0x00:
             write_io_00_bank_switch(addr, value);
+            break;
+        case 0x01:
+            write_io_01_int_enable(addr, value);
+            break;
+        case 0x02:
+            write_io_02_tm0(addr, value);
             break;
         case 0x05:
             write_io_05_clock_ctrl(addr, value);
@@ -330,11 +368,17 @@ uint8_t write_io(uint8_t addr, uint8_t value) {
         case 0x0F:
             write_io_0f_zero_page_bank_switch(addr, value);
             break;
+        case 0x18:
+            write_io_18_port4(addr, value);
+            break;
         case 0x20:
-            write_io_20_jg(addr, value);
+            write_io_20_dsp_ctrl(addr, value);
+            break;
+        case 0x22:
+            write_io_22_dsp_low(addr, value);
             break;
         case 0x23:
-            write_io_23_jg_wav(addr, value);
+            write_io_23_dsp_high(addr, value);
             break;
         case 0x3F:
             write_io_3f_clock(addr, value);

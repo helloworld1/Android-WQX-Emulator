@@ -81,3 +81,22 @@ JNIEXPORT jlong JNICALL
 Java_org_liberty_android_nc1020emu_NC1020JNI_getCycles(JNIEnv *env, jclass type) {
     return get_cycles();
 }
+
+JNIEXPORT jint JNICALL
+Java_org_liberty_android_nc1020emu_NC1020JNI_readAudioSamples(JNIEnv *env, jclass type,
+                                                              jshortArray buffer) {
+    if (buffer == NULL) {
+        return 0;
+    }
+    jsize capacity = (*env)->GetArrayLength(env, buffer);
+    if (capacity <= 0) {
+        return 0;
+    }
+    jshort *elements = (*env)->GetShortArrayElements(env, buffer, NULL);
+    if (elements == NULL) {
+        return 0;
+    }
+    size_t count = read_nc1020_audio((int16_t *) elements, (size_t) capacity);
+    (*env)->ReleaseShortArrayElements(env, buffer, elements, count > 0 ? 0 : JNI_ABORT);
+    return (jint) count;
+}

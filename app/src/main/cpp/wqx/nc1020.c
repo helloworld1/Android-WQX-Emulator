@@ -2,6 +2,8 @@
 #include "cpu6502.h"
 #include "nc1020_states.h"
 #include "nc1020_io.h"
+#include "nc1020_dsp.h"
+#include "nc1020_sound.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -57,6 +59,34 @@ static uint8_t *_jg_wav_buff;
 static uint8_t *_fp_buff;
 
 static uint8_t *_keypad_matrix;
+
+static bool _tm0_running = false;
+static uint64_t _tm0_slice_deadline = 0;
+static uint64_t _current_slice_cycles = 0;
+
+static uint64_t tm0_cycles_for_counter(uint8_t counter) {
+    uint8_t io0c = _ram_buff[0x0C];
+    uint8_t tmodesl = io0c >> 6u;
+    uint8_t shift = (tmodesl == 1u) ? ((io0c >> 4u) & 3u) : ((io0c >> 3u) & 7u);
+    uint64_t ticks = (uint64_t) (256u - counter) << shift;
+    uint64_t c = (ticks * 504u) / 193u;
+    return c < 16u ? 16u : c;
+}
+
+void nc1020_tm0_start(uint8_t counter) {
+    _tm0_running = true;
+    _tm0_slice_deadline = _current_slice_cycles + tm0_cycles_for_counter(counter);
+}
+
+void nc1020_tm0_stop(void) {
+    _tm0_running = false;
+}
+
+void nc1020_tm0_set_counter(uint8_t counter) {
+    if (_tm0_running) {
+        _tm0_slice_deadline = _current_slice_cycles + tm0_cycles_for_counter(counter);
+    }
+}
 
 static void adjust_time(){
     if (++ _clock_buff[0] >= 60) {
@@ -307,6 +337,8 @@ void initialize(const char *rom_file_path, const char *nor_file_path, const char
 
     init_6502(peek_byte, load, store);
     init_nc1020_io(&_nc1020_states, _rom_buff, _nor_buff, _memmap);
+    dsp_init();
+    sound_init();
 
     load_rom();
 }
@@ -347,6 +379,12 @@ static void reset_states(){
 	_nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
 	_nc1020_states.timer0_cycles = CYCLES_TIMER0;
 	_nc1020_states.timer1_cycles = CYCLES_TIMER1;
+
+	_tm0_running = false;
+	_tm0_slice_deadline = 0;
+	_current_slice_cycles = 0;
+	dsp_reset();
+	sound_reset(false);
 }
 
 static void load_states(){
@@ -361,6 +399,13 @@ static void load_states(){
 		return;
 	}
     switch_volume();
+    _ram_buff[0x0462] |= 0x80u;
+    dsp_post_load_states((_ram_buff[0x20] & 0x80u) != 0 || !(_ram_buff[0x0493] & 0x80u));
+    sound_reset((_ram_buff[0x18] & 0x80u) != 0);
+    if ((_ram_buff[0x0492] & 0x80u) || (_ram_buff[0x0493] & 0x80u)) {
+        _current_slice_cycles = 0;
+        nc1020_tm0_start(_ram_buff[0x02]);
+    }
 }
 
 static void save_states(){
@@ -441,13 +486,30 @@ uint8_t* get_lcd_buffer(){
 }
 
 
+size_t read_nc1020_audio(int16_t *buffer, size_t max_samples) {
+    return read_audio_samples(buffer, max_samples);
+}
+
 void run_time_slice(uint64_t time_slice, bool speed_up) {
     uint64_t end_cycles = time_slice * CYCLES_MS;
 
     uint64_t cycles = 0;
+    _current_slice_cycles = 0;
+
+    sound_begin_slice(_nc1020_states.cycles, speed_up);
 
 	while (cycles < end_cycles) {
-		cycles += execute_6502(&_nc1020_states.cpu);
+		uint64_t step_cycles = execute_6502(&_nc1020_states.cpu);
+		cycles += step_cycles;
+		_current_slice_cycles = cycles;
+		_nc1020_states.cycles += step_cycles;
+
+		if (_tm0_running && cycles >= _tm0_slice_deadline) {
+			_tm0_slice_deadline = cycles + tm0_cycles_for_counter(0);
+			_ram_buff[0x02] = 0;
+			_ram_buff[0x01] |= 0x10u;
+			_nc1020_states.should_irq = true;
+		}
 		if (cycles >= _nc1020_states.timer0_cycles) {
 			_nc1020_states.timer0_cycles += CYCLES_TIMER0;
 			_nc1020_states.timer0_toggle = !_nc1020_states.timer0_toggle;
@@ -462,9 +524,12 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
 			}
 			_nc1020_states.should_irq = true;
 		}
-		if (_nc1020_states.should_irq) {
+		if (_nc1020_states.should_irq && !(_nc1020_states.cpu.reg_ps & 0x04u)) {
 			_nc1020_states.should_irq = false;
-			cycles += do_irq(&_nc1020_states.cpu);
+			uint64_t irq_cycles = do_irq(&_nc1020_states.cpu);
+			cycles += irq_cycles;
+			_current_slice_cycles = cycles;
+			_nc1020_states.cycles += irq_cycles;
 		}
 		if (cycles >= _nc1020_states.timer1_cycles) {
 			if (speed_up) {
@@ -475,17 +540,23 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
 			_clock_buff[4] ++;
 			if (_nc1020_states.should_wake_up) {
 				_nc1020_states.should_wake_up = false;
-                write_io(0x01, (uint8_t) (read_io(0x01) | 0x01u));
-                write_io(0x02, (uint8_t) (read_io(0x02) | 0x01u));
+				_nc1020_states.should_irq = false;
+				_ram_buff[0x01] |= 0x01u;
+				_ram_buff[0x02] |= 0x01u;
 				_nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
 			} else {
-                write_io(0x01, (uint8_t) (read_io(0x01) | 0x08u));
+				_ram_buff[0x01] |= 0x08u;
 				_nc1020_states.should_irq = true;
 			}
 		}
 	}
 
-	_nc1020_states.cycles += cycles;
+	sound_end_slice(_nc1020_states.cycles);
+
+	_current_slice_cycles = 0;
+	if (_tm0_running) {
+		_tm0_slice_deadline = (_tm0_slice_deadline > cycles) ? (_tm0_slice_deadline - cycles) : 0;
+	}
 	_nc1020_states.timer0_cycles -= end_cycles;
 	_nc1020_states.timer1_cycles -= end_cycles;
 }
