@@ -1,4 +1,5 @@
 #include "./wqx/nc1020.h"
+#include "android_audio.h"
 #include <string.h>
 #include <jni.h>
 
@@ -99,4 +100,26 @@ Java_org_liberty_android_nc1020emu_NC1020JNI_readAudioSamples(JNIEnv *env, jclas
     size_t count = read_nc1020_audio((int16_t *) elements, (size_t) capacity);
     (*env)->ReleaseShortArrayElements(env, buffer, elements, count > 0 ? 0 : JNI_ABORT);
     return (jint) count;
+}
+
+JNIEXPORT void JNICALL
+Java_org_liberty_android_nc1020emu_NC1020JNI_startAudio(JNIEnv *env, jclass type) {
+    (void) env;
+    (void) type;
+    android_audio_start();
+}
+
+JNIEXPORT void JNICALL
+Java_org_liberty_android_nc1020emu_NC1020JNI_stopAudio(JNIEnv *env, jclass type) {
+    (void) env;
+    (void) type;
+    android_audio_stop();
+}
+
+JNIEXPORT void JNICALL
+Java_org_liberty_android_nc1020emu_NC1020JNI_setAudioEnabled(JNIEnv *env, jclass type,
+                                                             jboolean enabled) {
+    (void) env;
+    (void) type;
+    android_audio_set_enabled(enabled == JNI_TRUE);
 }

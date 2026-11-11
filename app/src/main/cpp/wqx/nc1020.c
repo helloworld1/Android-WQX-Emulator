@@ -444,6 +444,17 @@ void set_key(uint8_t key_id, bool down_or_up){
 		_keypad_matrix[row] &= ~bits;
 	}
 
+	// Align the kernel's cyclic keypad row index ($BA) so the next 256 Hz timer1 IRQ
+	// scans the changed row immediately (~1.9 ms average) instead of up to 9 IRQs (~35 ms).
+	if (!_nc1020_states.slept && _ram_buff[0x0460] == 0xA5u && !(_ram_buff[0xC7] & 0x80u)) {
+		if (key_id == 0x0F) {
+			_ram_buff[0xBA] = 7u;
+		} else if (key_id < 0x40u) {
+			uint8_t scan_idx = (uint8_t) (7u - row);
+			_ram_buff[0xBA] = (scan_idx == 0u) ? 0xFFu : (uint8_t) (scan_idx - 1u);
+		}
+	}
+
 	if (down_or_up) {
 		if (_nc1020_states.slept) {
 			if (key_id >= 0x08 && key_id <= 0x0F && key_id != 0x0E) {

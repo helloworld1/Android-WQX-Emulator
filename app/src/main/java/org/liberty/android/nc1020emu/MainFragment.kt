@@ -2,18 +2,15 @@ package org.liberty.android.nc1020emu
 
 import org.liberty.android.nc1020emu.NC1020JNI.runTimeSlice
 import org.liberty.android.nc1020emu.NC1020JNI.copyLcdBufferEx
-import org.liberty.android.nc1020emu.NC1020JNI.readAudioSamples
+import org.liberty.android.nc1020emu.NC1020JNI.startAudio
+import org.liberty.android.nc1020emu.NC1020JNI.stopAudio
+import org.liberty.android.nc1020emu.NC1020JNI.setAudioEnabled
 import org.liberty.android.nc1020emu.NC1020JNI.save
 import org.liberty.android.nc1020emu.NC1020JNI.setKey
 import org.liberty.android.nc1020emu.NC1020JNI.reset
 import org.liberty.android.nc1020emu.NC1020JNI.load
 import org.liberty.android.nc1020emu.NC1020JNI.initialize
 import org.liberty.android.nc1020emu.NC1020JNI.cycles
-import android.media.AudioAttributes
-import android.media.AudioFormat
-import android.media.AudioManager
-import android.media.AudioTrack
-import android.os.Build
 import android.view.SurfaceHolder
 import android.view.Choreographer.FrameCallback
 import android.graphics.Bitmap
@@ -48,15 +45,20 @@ import java.io.IOException
 import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
-import kotlin.math.max
 
 class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val lcdBufferEx = ByteArray(1600 * 8)
-    private val audioBuffer = ShortArray(2048)
+    private val wakeMonitor = Object()
+    @Volatile
+    private var keyDownWakePending = false
+    @Volatile
+    private var keyUpWakePending = false
     private var lcdBitmap= Bitmap.createBitmap(160, 80, Bitmap.Config.ALPHA_8)
     private var lcdMatrix = Matrix()
+    @Volatile
     private var speedUp = false
     private val executorService = Executors.newSingleThreadExecutor()
+    @Volatile
     private var isRunning = true
     private var displayScale = 1f
     private var lastFrameTime: Long = 0
@@ -68,35 +70,87 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private lateinit var infoText: TextView
 
     private val runnable = Runnable {
-        val audioTrack = createAudioTrack()
-        try {
-            audioTrack?.play()
-        } catch (e: IllegalStateException) {
-            Log.e(TAG, "Error starting AudioTrack", e)
+        val soundOn = beepEnabledSetting
+        setAudioEnabled(soundOn && !speedUp)
+        if (soundOn) {
+            startAudio()
         }
-        var interval = 0L
+        var lastSliceNs = System.nanoTime()
+        var lastLcdCopyNs = 0L
+        var pendingNs = 0L
+        var debtNs = 0L
+        var noRepayUntilNs = 0L
         try {
             while (isRunning) {
-                val startTime = System.currentTimeMillis()
-                runTimeSlice(interval.toInt(), speedUp)
-                copyLcdBufferEx(lcdBufferEx)
-                drainAudio(audioTrack)
-                val elapsed = System.currentTimeMillis() - startTime
-                if (elapsed < FRAME_INTERVAL) {
-                    try {
-                        // If speedUp, don't sleep, run as much frames as system can
-                        Thread.sleep(if (speedUp) 0 else FRAME_INTERVAL - elapsed)
-                    } catch (e: InterruptedException) {
-                        e.printStackTrace()
+                val nowNs = System.nanoTime()
+                pendingNs += (nowNs - lastSliceNs).coerceIn(0L, 100_000_000L)
+                lastSliceNs = nowNs
+
+                if (speedUp) {
+                    runTimeSlice(FRAME_INTERVAL, true)
+                    pendingNs = 0L
+                    debtNs = 0L
+                    keyDownWakePending = false
+                    keyUpWakePending = false
+                    if (nowNs - lastLcdCopyNs >= LCD_INTERVAL_NS) {
+                        synchronized(lcdBufferEx) {
+                            copyLcdBufferEx(lcdBufferEx)
+                        }
+                        lastLcdCopyNs = nowNs
+                    }
+                } else {
+                    if (keyDownWakePending) {
+                        keyDownWakePending = false
+                        keyUpWakePending = false
+                        // Immediately run 7ms on key-down (~0.1ms on host CPU) so the next 256 Hz
+                        // timer1 IRQ scans the aligned keypad row and queues beep audio right now.
+                        val elapsedMs = (pendingNs / 1_000_000L).toInt()
+                        val borrowMs = if (debtNs < 10_000_000L) (7 - elapsedMs).coerceAtLeast(0) else 0
+                        val runMs = (elapsedMs + borrowMs).coerceAtLeast(1)
+                        runTimeSlice(runMs, false)
+                        pendingNs -= elapsedMs * 1_000_000L
+                        debtNs += borrowMs * 1_000_000L
+                        noRepayUntilNs = nowNs + 60_000_000L
+                    } else {
+                        if (debtNs > 0L && nowNs >= noRepayUntilNs && pendingNs >= 4_000_000L) {
+                            pendingNs -= 1_000_000L
+                            debtNs = (debtNs - 1_000_000L).coerceAtLeast(0L)
+                        }
+                        val sliceMs = (pendingNs / 1_000_000L).toInt()
+                        if (sliceMs > 0) {
+                            runTimeSlice(sliceMs, false)
+                            pendingNs -= sliceMs * 1_000_000L
+                            keyUpWakePending = false
+                        } else if (keyUpWakePending && debtNs < 12_000_000L) {
+                            keyUpWakePending = false
+                            runTimeSlice(1, false)
+                            debtNs += 1_000_000L
+                        }
+                    }
+
+                    val afterSliceNs = System.nanoTime()
+                    if (afterSliceNs - lastLcdCopyNs >= LCD_INTERVAL_NS) {
+                        synchronized(lcdBufferEx) {
+                            copyLcdBufferEx(lcdBufferEx)
+                        }
+                        lastLcdCopyNs = afterSliceNs
+                    }
+
+                    val waitNs = SLICE_INTERVAL_NS - pendingNs - (afterSliceNs - nowNs)
+                    if (waitNs > 200_000L && isRunning && !speedUp) {
+                        synchronized(wakeMonitor) {
+                            if (isRunning && !speedUp && !keyDownWakePending && !keyUpWakePending) {
+                                wakeMonitor.wait(waitNs / 1_000_000L, (waitNs % 1_000_000L).toInt())
+                            }
+                        }
                     }
                 }
-                interval = max(elapsed, FRAME_INTERVAL.toLong())
             }
             if (saveStatesSetting) {
                 save()
             }
         } finally {
-            releaseAudioTrack(audioTrack)
+            stopAudio()
         }
     }
 
@@ -113,10 +167,12 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         keypadLayout.setOnButtonTouchListener(object : OnButtonPressedListener {
             override fun onKeyDown(keyCode: Int) {
                 setKey(keyCode, true)
+                wakeEmulationThread(keyDown = true)
             }
 
             override fun onKeyUp(keyCode: Int) {
                 setKey(keyCode, false)
+                wakeEmulationThread(keyUp = true)
             }
         })
         val width = screenWidth
@@ -151,6 +207,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                 R.id.action_speed_up -> {
                     item.isChecked = !item.isChecked
                     speedUp = item.isChecked
+                    setAudioEnabled(beepEnabledSetting && !speedUp)
+                    wakeEmulationThread()
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_load -> {
@@ -214,7 +272,20 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     private fun stopEmulation() {
         isRunning = false
+        wakeEmulationThread()
         Choreographer.getInstance().removeFrameCallback(this)
+    }
+
+    private fun wakeEmulationThread(keyDown: Boolean = false, keyUp: Boolean = false) {
+        synchronized(wakeMonitor) {
+            if (keyDown) {
+                keyDownWakePending = true
+            }
+            if (keyUp) {
+                keyUpWakePending = true
+            }
+            wakeMonitor.notifyAll()
+        }
     }
 
     private val saveStatesSetting: Boolean
@@ -222,72 +293,6 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     private val beepEnabledSetting: Boolean
         get() = preferences.getBoolean(ENABLE_BEEP_KEY, true)
-
-    private fun createAudioTrack(): AudioTrack? {
-        return try {
-            val minBufferSize = AudioTrack.getMinBufferSize(
-                AUDIO_SAMPLE_RATE,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            )
-            if (minBufferSize <= 0) {
-                Log.w(TAG, "Invalid AudioTrack minBufferSize: $minBufferSize")
-                return null
-            }
-            val bufferSizeInBytes = max(minBufferSize * 2, AUDIO_SAMPLE_RATE * 2)
-            val attributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_GAME)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-            val format = AudioFormat.Builder()
-                .setSampleRate(AUDIO_SAMPLE_RATE)
-                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                .build()
-            AudioTrack(
-                attributes,
-                format,
-                bufferSizeInBytes,
-                AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize AudioTrack", e)
-            null
-        }
-    }
-
-    private fun drainAudio(track: AudioTrack?) {
-        while (true) {
-            val count = readAudioSamples(audioBuffer)
-            if (count <= 0) {
-                break
-            }
-            if (track != null && beepEnabledSetting && !speedUp) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    track.write(audioBuffer, 0, count, AudioTrack.WRITE_NON_BLOCKING)
-                } else {
-                    track.write(audioBuffer, 0, count)
-                }
-            }
-        }
-    }
-
-    private fun releaseAudioTrack(track: AudioTrack?) {
-        if (track == null) {
-            return
-        }
-        try {
-            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                track.pause()
-            }
-            track.flush()
-        } catch (e: IllegalStateException) {
-            Log.w(TAG, "Error stopping AudioTrack", e)
-        } finally {
-            track.release()
-        }
-    }
 
     private fun showFactoryResetDialog() {
         AlertDialog.Builder(requireContext())
@@ -379,12 +384,13 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         private val TAG = MainFragment::class.java.simpleName
         private const val FRAME_RATE = 60
         private const val FRAME_INTERVAL = 1000 / FRAME_RATE
+        private const val SLICE_INTERVAL_NS = 3_000_000L
+        private const val LCD_INTERVAL_NS = 16_666_667L
         private const val CYCLES_SECOND: Long = 5120000
         private const val ROM_FILE_NAME = "obj_lu.bin"
         private const val NOR_FILE_NAME = "nc1020.fls"
         private const val STATE_FILE_NAME = "nc1020.sts"
         private const val SAVE_STATES_KEY = "save_states"
         private const val ENABLE_BEEP_KEY = "enable_beep"
-        private const val AUDIO_SAMPLE_RATE = 48000
     }
 }

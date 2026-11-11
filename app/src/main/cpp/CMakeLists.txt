@@ -6,6 +6,7 @@ add_library(
         nc1020
         SHARED
         org_liberty_android_nc1020emu_NC1020JNI.c
+        android_audio.c
         wqx/cpu6502.c
         wqx/nc1020.c
         wqx/nc1020_io.c
@@ -15,7 +16,8 @@ add_library(
 target_link_libraries(
         nc1020
         android
-        log)
+        log
+        OpenSLES)
 
 set_target_properties(nc1020 PROPERTIES LINK_FLAGS "-Wl,-z,max-page-size=16384")
 
