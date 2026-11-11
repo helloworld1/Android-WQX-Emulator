@@ -12,6 +12,16 @@ object NC1020JNI {
     @JvmStatic external fun startAudio()
     @JvmStatic external fun stopAudio()
     @JvmStatic external fun setAudioEnabled(enabled: Boolean)
+    @JvmStatic external fun syncTime(
+        year: Int,
+        month: Int,
+        day: Int,
+        wday: Int,
+        hour: Int,
+        minute: Int,
+        second: Int,
+        tzOffsetSec: Int
+    )
     @JvmStatic val cycles: Long external get
 
     init {

@@ -5,6 +5,7 @@ import org.liberty.android.nc1020emu.NC1020JNI.copyLcdBufferEx
 import org.liberty.android.nc1020emu.NC1020JNI.startAudio
 import org.liberty.android.nc1020emu.NC1020JNI.stopAudio
 import org.liberty.android.nc1020emu.NC1020JNI.setAudioEnabled
+import org.liberty.android.nc1020emu.NC1020JNI.syncTime
 import org.liberty.android.nc1020emu.NC1020JNI.save
 import org.liberty.android.nc1020emu.NC1020JNI.setKey
 import org.liberty.android.nc1020emu.NC1020JNI.reset
@@ -44,6 +45,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.lang.RuntimeException
 import java.nio.ByteBuffer
+import java.util.Calendar
 import java.util.concurrent.Executors
 
 class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
@@ -70,6 +72,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private lateinit var infoText: TextView
 
     private val runnable = Runnable {
+        syncSystemTime()
         val soundOn = beepEnabledSetting
         setAudioEnabled(soundOn && !speedUp)
         if (soundOn) {
@@ -201,6 +204,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_restart -> {
+                    syncSystemTime()
                     reset()
                     return@setOnMenuItemClickListener true
                 }
@@ -212,6 +216,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_load -> {
+                    syncSystemTime()
                     load()
                     return@setOnMenuItemClickListener true
                 }
@@ -261,7 +266,23 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         val norPath = "$fileDir/$NOR_FILE_NAME"
         val statePath = "$fileDir/$STATE_FILE_NAME"
         initialize(romPath, norPath, statePath)
+        syncSystemTime()
         load()
+    }
+
+    private fun syncSystemTime() {
+        val cal = Calendar.getInstance()
+        val tzOffsetSec = (cal.get(Calendar.ZONE_OFFSET) + cal.get(Calendar.DST_OFFSET)) / 1000
+        syncTime(
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH) + 1,
+            cal.get(Calendar.DAY_OF_MONTH),
+            cal.get(Calendar.DAY_OF_WEEK) - 1,
+            cal.get(Calendar.HOUR_OF_DAY),
+            cal.get(Calendar.MINUTE),
+            cal.get(Calendar.SECOND),
+            tzOffsetSec
+        )
     }
 
     private fun startEmulation() {

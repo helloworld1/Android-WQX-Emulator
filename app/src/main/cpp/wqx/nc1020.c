@@ -1,3 +1,6 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "nc1020.h"
 #include "cpu6502.h"
 #include "nc1020_states.h"
@@ -63,6 +66,11 @@ static uint8_t *_keypad_matrix;
 static bool _tm0_running = false;
 static uint64_t _tm0_slice_deadline = 0;
 static uint64_t _current_slice_cycles = 0;
+static bool _pending_cold_boot_sync = false;
+static bool _has_tz_offset = false;
+static int32_t _tz_offset_sec = 0;
+
+static void sync_time(void);
 
 static uint64_t tm0_cycles_for_counter(uint8_t counter) {
     uint8_t io0c = _ram_buff[0x0C];
@@ -185,6 +193,10 @@ static void store(uint16_t addr, uint8_t value) {
 	}
 	if (addr < 0x4000) {
         _memmap[addr / 0x2000][addr % 0x2000] = value;
+		if (_pending_cold_boot_sync && addr == 0x074C && value == 0x84u) {
+			_pending_cold_boot_sync = false;
+			sync_time();
+		}
 		return;
 	}
 	uint8_t* page = _memmap[addr >> 13u];
@@ -299,22 +311,114 @@ static void store(uint16_t addr, uint8_t value) {
     printf("error occurs when operate in flash!");
 }
 
-static void sync_time() {
-    time_t time_raw_format;
-    struct tm * ptr_time;
-    time ( &time_raw_format );
-    ptr_time = localtime ( &time_raw_format );
-    store(1138, (uint8_t) (1900 + ptr_time -> tm_year - 1881));
-    store(1139, (uint8_t) (ptr_time -> tm_mon + 1));
-    store(1140, (uint8_t) (ptr_time -> tm_mday + 1));
-    store(1141, (uint8_t) (ptr_time -> tm_wday));
-    store(1135, (uint8_t) (ptr_time -> tm_hour));
-    store(1136, (uint8_t) (ptr_time -> tm_min));
-    store(1137, (uint8_t) (ptr_time -> tm_sec / 2));
+static void apply_nc1020_datetime(int year, int month, int day, int wday, int hour, int minute, int second) {
+    if (year < 1932) {
+        year = 1932;
+    } else if (year > 2031) {
+        year = 2031;
+    }
+    if (month < 1) {
+        month = 1;
+    } else if (month > 12) {
+        month = 12;
+    }
+    if (day < 1) {
+        day = 1;
+    } else if (day > 31) {
+        day = 31;
+    }
+    wday = ((wday % 7) + 7) % 7;
+    if (hour < 0) {
+        hour = 0;
+    } else if (hour > 23) {
+        hour = 23;
+    }
+    if (minute < 0) {
+        minute = 0;
+    } else if (minute > 59) {
+        minute = 59;
+    }
+    if (second < 0) {
+        second = 0;
+    } else if (second > 59) {
+        second = 59;
+    }
 
-    _clock_buff[0] = (uint8_t) ptr_time -> tm_sec;
-    _clock_buff[1] = (uint8_t) ptr_time -> tm_min;
-    _clock_buff[2] = (uint8_t) ptr_time -> tm_hour;
+    uint8_t enc_year = (uint8_t) (year - 1881);
+    uint8_t enc_mon = (uint8_t) (month - 1);
+    uint8_t enc_day = (uint8_t) (day - 1);
+    uint8_t enc_wday = (uint8_t) wday;
+
+    uint8_t old_year = _ram_buff[0x0472];
+    uint8_t old_mon = _ram_buff[0x0473];
+    uint8_t old_day = _ram_buff[0x0474];
+    bool date_changed = (old_year != enc_year ||
+                         old_mon != enc_mon ||
+                         old_day != enc_day ||
+                         _ram_buff[0x0475] != enc_wday);
+
+    // $046F..$0475 (1135..1141): hour, min, sec*2, year-1881, 0-based month, 0-based day, weekday (0=Sun..6=Sat)
+    _ram_buff[0x046F] = (uint8_t) hour;
+    _ram_buff[0x0470] = (uint8_t) minute;
+    _ram_buff[0x0471] = (uint8_t) (second * 2);
+    _ram_buff[0x0472] = enc_year;
+    _ram_buff[0x0473] = enc_mon;
+    _ram_buff[0x0474] = enc_day;
+    _ram_buff[0x0475] = enc_wday;
+
+    // Hardware RTC registers ($3E/$3F): preserve bits 6..7 of reg 2, zero sleep elapsed-day counter reg 3
+    _clock_buff[0] = (uint8_t) second;
+    _clock_buff[1] = (uint8_t) minute;
+    _clock_buff[2] = (uint8_t) ((_clock_buff[2] & 0xC0u) | ((uint8_t) hour & 0x1Fu));
+    _clock_buff[3] = 0;
+
+    if (!_nc1020_states.slept && _ram_buff[0x0460] == 0xA5u) {
+        _ram_buff[0x047A] |= 0x80u;
+        _ram_buff[0x0462] |= 0x80u;
+        if (date_changed) {
+            _ram_buff[0x074C] |= 0x04u;
+            // If sitting idle on the main Clock/Calendar screen (vol 0, bank 0x83), trigger its
+            // silent $4580 calendar+lunar+clock refresh handler so the displayed date updates immediately.
+            if ((_ram_buff[0x0D] & 0x03u) == 0u &&
+                _ram_buff[0x00] == 0x83u &&
+                (_ram_buff[0x0F] & 0x07u) == 0u &&
+                _ram_buff[0x43] == old_year &&
+                _ram_buff[0x44] == old_mon &&
+                _ram_buff[0x45] == old_day &&
+                _ram_buff[0x6B] == 0u &&
+                (_ram_buff[0xC7] & 0x80u) == 0u) {
+                _ram_buff[0x6B] = 0xFFu;
+                _ram_buff[0xC7] = 0x80u | 0x1Bu;
+            }
+        }
+    }
+}
+
+static void sync_time(void) {
+    time_t now_sec = 0;
+    time(&now_sec);
+    struct tm tm_val;
+    memset(&tm_val, 0, sizeof(tm_val));
+    if (_has_tz_offset) {
+        time_t shifted = now_sec + (time_t) _tz_offset_sec;
+        gmtime_r(&shifted, &tm_val);
+    } else {
+        tzset();
+        localtime_r(&now_sec, &tm_val);
+    }
+    apply_nc1020_datetime(1900 + tm_val.tm_year,
+                          tm_val.tm_mon + 1,
+                          tm_val.tm_mday,
+                          tm_val.tm_wday,
+                          tm_val.tm_hour,
+                          tm_val.tm_min,
+                          tm_val.tm_sec);
+}
+
+void sync_nc1020_time(int year, int month, int day, int wday, int hour, int minute, int second, int32_t tz_offset_sec) {
+    _tz_offset_sec = tz_offset_sec;
+    _has_tz_offset = true;
+    apply_nc1020_datetime(year, month, day, wday, hour, minute, second);
 }
 
 void initialize(const char *rom_file_path, const char *nor_file_path, const char *state_file_path) {
@@ -383,6 +487,7 @@ static void reset_states(){
 	_tm0_running = false;
 	_tm0_slice_deadline = 0;
 	_current_slice_cycles = 0;
+	_pending_cold_boot_sync = true;
 	dsp_reset();
 	sound_reset(false);
 }
@@ -398,6 +503,10 @@ static void load_states(){
 	if (_nc1020_states.version != VERSION) {
 		return;
 	}
+    if (_ram_buff[0x0460] == 0xA5u &&
+        (_ram_buff[0x0472] | _ram_buff[0x0473] | _ram_buff[0x0474] | _ram_buff[0x0475]) != 0) {
+        _pending_cold_boot_sync = false;
+    }
     switch_volume();
     _ram_buff[0x0462] |= 0x80u;
     dsp_post_load_states((_ram_buff[0x20] & 0x80u) != 0 || !(_ram_buff[0x0493] & 0x80u));

@@ -17,5 +17,6 @@ size_t read_nc1020_audio(int16_t *buffer, size_t max_samples);
 void nc1020_tm0_start(uint8_t counter);
 void nc1020_tm0_stop(void);
 void nc1020_tm0_set_counter(uint8_t counter);
+void sync_nc1020_time(int year, int month, int day, int wday, int hour, int minute, int second, int32_t tz_offset_sec);
 
 #endif /* NC1020_H_ */

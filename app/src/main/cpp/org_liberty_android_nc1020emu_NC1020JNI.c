@@ -123,3 +123,14 @@ Java_org_liberty_android_nc1020emu_NC1020JNI_setAudioEnabled(JNIEnv *env, jclass
     (void) type;
     android_audio_set_enabled(enabled == JNI_TRUE);
 }
+
+JNIEXPORT void JNICALL
+Java_org_liberty_android_nc1020emu_NC1020JNI_syncTime(JNIEnv *env, jclass type,
+                                                      jint year, jint month, jint day, jint wday,
+                                                      jint hour, jint minute, jint second,
+                                                      jint tzOffsetSec) {
+    (void) env;
+    (void) type;
+    sync_nc1020_time((int) year, (int) month, (int) day, (int) wday,
+                     (int) hour, (int) minute, (int) second, (int32_t) tzOffsetSec);
+}
