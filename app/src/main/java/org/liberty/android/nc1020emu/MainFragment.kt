@@ -25,8 +25,8 @@ import android.view.Gravity
 import androidx.navigation.Navigation
 import android.view.Choreographer
 import android.content.DialogInterface
+import android.content.res.Configuration
 import android.graphics.Matrix
-import android.graphics.Point
 import android.util.Log
 import kotlin.Throws
 import android.view.MenuItem
@@ -36,6 +36,7 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import android.view.SurfaceView
@@ -48,6 +49,8 @@ import java.nio.ByteBuffer
 import java.util.ArrayDeque
 import java.util.Calendar
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 
 class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val lcdBufferEx = ByteArray(1600 * 8)
@@ -59,6 +62,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     @Volatile
     private var speedUp = false
     private val executorService = Executors.newSingleThreadExecutor()
+    private var runningFuture: Future<*>? = null
     @Volatile
     private var isRunning = true
     private var displayScale = 1f
@@ -66,6 +70,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private var lastCycles: Long = 0
     private var frames: Long = 0
     private lateinit var preferences: SharedPreferences
+    private lateinit var emulatorContainer: LinearLayout
+    private lateinit var lcdContainer: LinearLayout
     private lateinit var keypadLayout: KeypadLayout
     private lateinit var lcdSurface: SurfaceView
     private lateinit var infoText: TextView
@@ -221,7 +227,12 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        if (savedInstanceState != null) {
+            speedUp = savedInstanceState.getBoolean(KEY_SPEED_UP, false)
+        }
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        emulatorContainer = view.findViewById(R.id.emulator_container)
+        lcdContainer = view.findViewById(R.id.lcd_container)
         keypadLayout = view.findViewById(R.id.keypad_layout)
         lcdSurface = view.findViewById(R.id.lcd_surface)
         infoText = view.findViewById(R.id.info_text)
@@ -230,25 +241,97 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                 enqueueKeyPress(keyCode)
             }
         })
-        val width = screenWidth
-        displayScale = width.toFloat() / 160
-        val params = LinearLayout.LayoutParams(width, width / 2)
-        params.gravity = Gravity.CENTER_HORIZONTAL
-        lcdSurface.layoutParams = params
         lcdSurface.holder.addCallback(this)
+        view.doOnLayout {
+            if (isAdded && this.view != null) {
+                updateLcdLayoutSize()
+            }
+        }
+        lcdContainer.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                lcdContainer.post {
+                    if (isAdded && this.view != null) {
+                        updateLcdLayoutSize()
+                    }
+                }
+            }
+        }
         val toolbar: Toolbar = view.findViewById(R.id.toolbar)
         setupToolbar(toolbar)
-        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            toolbar.setPadding(toolbar.paddingLeft, systemBars.top, toolbar.paddingRight, toolbar.paddingBottom)
-            v.setPadding(systemBars.left, 0, systemBars.right, 0)
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val initialToolbarLeft = toolbar.paddingLeft
+        val initialToolbarRight = toolbar.paddingRight
+        val initialToolbarBottom = toolbar.paddingBottom
+        val initialContainerLeft = emulatorContainer.paddingLeft
+        val initialContainerTop = emulatorContainer.paddingTop
+        val initialContainerRight = emulatorContainer.paddingRight
+        val initialContainerBottom = emulatorContainer.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            toolbar.setPadding(
+                initialToolbarLeft + bars.left,
+                bars.top,
+                initialToolbarRight + bars.right,
+                initialToolbarBottom
+            )
+            if (isLandscape) {
+                emulatorContainer.setPadding(
+                    initialContainerLeft + bars.left,
+                    initialContainerTop,
+                    initialContainerRight + bars.right,
+                    initialContainerBottom + bars.bottom
+                )
+            } else {
+                emulatorContainer.setPadding(
+                    initialContainerLeft + bars.left,
+                    initialContainerTop,
+                    initialContainerRight + bars.right,
+                    initialContainerBottom
+                )
+            }
             insets
         }
-        initEmulation()
+        initEmulation(forceReload = !sessionActive)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_SPEED_UP, speedUp)
+    }
+
+    private fun updateLcdLayoutSize() {
+        val rootView = view ?: return
+        val containerWidth = lcdContainer.width
+        if (containerWidth <= 0) return
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val maxLcdHeight = if (isLandscape) {
+            (lcdContainer.height - infoText.height).coerceAtLeast(1)
+        } else {
+            (rootView.height - keypadLayout.height - infoText.height).coerceAtLeast(1)
+        }
+        val targetWidth = minOf(containerWidth, maxLcdHeight * 2)
+        val targetHeight = targetWidth / 2
+        if (targetWidth <= 0 || targetHeight <= 0) return
+        displayScale = targetWidth.toFloat() / 160f
+        lcdMatrix.setScale(displayScale, displayScale)
+        val currentParams = lcdSurface.layoutParams as LinearLayout.LayoutParams
+        if (currentParams.width != targetWidth || currentParams.height != targetHeight) {
+            currentParams.width = targetWidth
+            currentParams.height = targetHeight
+            currentParams.gravity = Gravity.CENTER_HORIZONTAL
+            lcdSurface.layoutParams = currentParams
+            infoText.layoutParams = (infoText.layoutParams as LinearLayout.LayoutParams).apply {
+                width = targetWidth
+                gravity = Gravity.CENTER_HORIZONTAL
+            }
+        }
     }
 
     private fun setupToolbar(toolbar: Toolbar) {
         toolbar.inflateMenu(R.menu.main_menu)
+        toolbar.menu.findItem(R.id.action_speed_up)?.isChecked = speedUp
         toolbar.setOnMenuItemClickListener { item: MenuItem ->
             when (item.itemId) {
                 R.id.action_quit -> {
@@ -299,29 +382,49 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     override fun onPause() {
         super.onPause()
         stopEmulation()
+        if (activity?.isFinishing == true) {
+            sessionActive = false
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (activity?.isFinishing == true) {
+            sessionActive = false
+        }
+        executorService.shutdown()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int,
                                 height: Int) {
+        if (width > 0 && height > 0) {
+            displayScale = width.toFloat() / 160f
+            lcdMatrix.setScale(displayScale, displayScale)
+            updateLcd()
+        }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         lcdMatrix.setScale(displayScale, displayScale)
-        val lcdCanvas = lcdSurface.holder.lockCanvas()
-        lcdCanvas.drawColor(ContextCompat.getColor(requireContext(), R.color.lcd_background))
-        lcdSurface.holder.unlockCanvasAndPost(lcdCanvas)
+        updateLcd()
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {}
-    private fun initEmulation() {
-        initDataFolder()
-        val fileDir = requireContext().applicationContext.filesDir.absolutePath
-        val romPath = "$fileDir/$ROM_FILE_NAME"
-        val norPath = "$fileDir/$NOR_FILE_NAME"
-        val statePath = "$fileDir/$STATE_FILE_NAME"
-        initialize(romPath, norPath, statePath)
-        syncSystemTime()
-        load()
+    private fun initEmulation(forceReload: Boolean) {
+        if (forceReload) {
+            initDataFolder()
+            val fileDir = requireContext().applicationContext.filesDir.absolutePath
+            val romPath = "$fileDir/$ROM_FILE_NAME"
+            val norPath = "$fileDir/$NOR_FILE_NAME"
+            val statePath = "$fileDir/$STATE_FILE_NAME"
+            initialize(romPath, norPath, statePath)
+            syncSystemTime()
+            load()
+            sessionActive = true
+        }
+        synchronized(lcdBufferEx) {
+            copyLcdBufferEx(lcdBufferEx)
+        }
     }
 
     private fun syncSystemTime() {
@@ -342,13 +445,19 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private fun startEmulation() {
         Choreographer.getInstance().postFrameCallback(this)
         isRunning = true
-        executorService.submit(runnable)
+        runningFuture = executorService.submit(runnable)
     }
 
     private fun stopEmulation() {
         isRunning = false
         wakeEmulationThread()
         Choreographer.getInstance().removeFrameCallback(this)
+        try {
+            runningFuture?.get(1000, TimeUnit.MILLISECONDS)
+        } catch (e: Exception) {
+            Log.w(TAG, "Timed out waiting for emulation thread to stop", e)
+        }
+        runningFuture = null
     }
 
     private fun enqueueKeyPress(keyCode: Int) {
@@ -427,17 +536,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         if (!stateFile.delete()) {
             Log.e(TAG, "Error deleting state file")
         }
-        initEmulation()
+        initEmulation(forceReload = true)
         reset()
     }
-
-    private val screenWidth: Int
-        get() {
-            val display = requireActivity().windowManager.defaultDisplay
-            val size = Point()
-            display.getSize(size)
-            return size.x
-        }
 
     private fun updateLcd() {
         val lcdCanvas = lcdSurface.holder.lockCanvas() ?: return
@@ -469,6 +570,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     companion object {
         private val TAG = MainFragment::class.java.simpleName
+        @Volatile
+        private var sessionActive = false
+        private const val KEY_SPEED_UP = "speed_up"
         private const val FRAME_RATE = 60
         private const val FRAME_INTERVAL = 1000 / FRAME_RATE
         private const val SLICE_INTERVAL_NS = 3_000_000L

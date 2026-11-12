@@ -17,6 +17,9 @@ class KeypadLayout : LinearLayout {
     private val functionButtonsKeycode = intArrayOf(0x10, 0x11, 0x12, 0x13, 0x0f)
     private val mainButtonsKeycode = arrayOf(intArrayOf(0x15, 0x14, -1, 0x0B, 0x0C, 0x0D, 0x0A, 0x09, 0x08, 0x0E), intArrayOf(0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x18, 0x1C), intArrayOf(0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x19, 0x1D), intArrayOf(0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x1A, 0x1E), intArrayOf(0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x1B, 0x1F))
     private var onButtonPressedListener: OnButtonPressedListener? = null
+    private lateinit var mainKeypadLayout: LinearLayout
+    private var defaultMainKeypadHeight = 0
+    private var functionAreaHeight = 0
     private val onButtonTouchListener = OnTouchListener { v, event ->
         val keyCode = v.tag as Int
         if (keyCode == -1 || onButtonPressedListener == null) {
@@ -65,11 +68,13 @@ class KeypadLayout : LinearLayout {
         orientation = VERTICAL
         val functionKeypadLayout = LinearLayout(context)
         val functionKeypadParam = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        functionKeypadParam.bottomMargin = resources.getDimensionPixelSize(R.dimen.function_keypad_bottom_margin)
+        val functionHeight = resources.getDimensionPixelSize(R.dimen.function_keypad_height)
+        val functionBottomMargin = resources.getDimensionPixelSize(R.dimen.function_keypad_bottom_margin)
+        functionKeypadParam.bottomMargin = functionBottomMargin
         functionKeypadLayout.layoutParams = functionKeypadParam
         functionKeypadLayout.orientation = HORIZONTAL
         functionKeypadLayout.setHorizontalGravity(Gravity.END)
-        val functionButtonParams = LayoutParams(resources.getDimensionPixelSize(R.dimen.function_keypad_width), resources.getDimensionPixelSize(R.dimen.function_keypad_height))
+        val functionButtonParams = LayoutParams(resources.getDimensionPixelSize(R.dimen.function_keypad_width), functionHeight)
         val f1Button = ImageButton(context)
         f1Button.setImageResource(R.drawable.f1)
         val padding = resources.getDimensionPixelSize(R.dimen.function_key_padding)
@@ -107,20 +112,23 @@ class KeypadLayout : LinearLayout {
         onoffButton.tag = functionButtonsKeycode[4]
         functionKeypadLayout.addView(onoffButton)
         addView(functionKeypadLayout)
-        val mainKeypadLayout = LinearLayout(context)
+        defaultMainKeypadHeight = resources.getDimensionPixelSize(R.dimen.main_keypad_height)
+        functionAreaHeight = functionHeight + functionBottomMargin
+        mainKeypadLayout = LinearLayout(context)
         mainKeypadLayout.orientation = VERTICAL
-        mainKeypadLayout.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT,
-                resources.getDimensionPixelSize(R.dimen.main_keypad_height))
+        mainKeypadLayout.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, defaultMainKeypadHeight)
         mainKeypadLayout.background = context.getDrawable(R.drawable.keypad)
-        val rowParam = LayoutParams(0, LayoutParams.MATCH_PARENT)
-        rowParam.weight = 1f
-        rowParam.leftMargin = 0
-        rowParam.rightMargin = 0
+        val buttonParam = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
         for (j in 0..4) {
             val rowLayout = LinearLayout(context)
+            rowLayout.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f)
             for (i in 0..9) {
                 val button = Button(context)
-                button.layoutParams = rowParam
+                button.layoutParams = buttonParam
+                button.minWidth = 0
+                button.minimumWidth = 0
+                button.minHeight = 0
+                button.minimumHeight = 0
                 button.setBackgroundResource(R.drawable.keypad_button)
                 button.tag = mainButtonsKeycode[j][i]
                 button.setOnTouchListener(onButtonTouchListener)
@@ -129,6 +137,22 @@ class KeypadLayout : LinearLayout {
             mainKeypadLayout.addView(rowLayout)
         }
         addView(mainKeypadLayout)
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val heightMode = MeasureSpec.getMode(heightMeasureSpec)
+        val heightSize = MeasureSpec.getSize(heightMeasureSpec)
+        val targetMainHeight = if (heightMode != MeasureSpec.UNSPECIFIED) {
+            val availableForMain = (heightSize - paddingTop - paddingBottom - functionAreaHeight)
+                .coerceAtLeast(1)
+            minOf(defaultMainKeypadHeight, availableForMain)
+        } else {
+            defaultMainKeypadHeight
+        }
+        if (mainKeypadLayout.layoutParams.height != targetMainHeight) {
+            mainKeypadLayout.layoutParams.height = targetMainHeight
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     fun setOnButtonTouchListener(onButtonPressedListener: OnButtonPressedListener?) {

@@ -1,0 +1,6 @@
+<resources>
+    <dimen name="main_keypad_height">200dp</dimen>
+    <dimen name="function_keypad_width">54dp</dimen>
+    <dimen name="function_keypad_height">36dp</dimen>
+    <dimen name="function_keypad_bottom_margin">6dp</dimen>
+</resources>
