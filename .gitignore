@@ -26,3 +26,9 @@ AMSecrets.java
 *.ipr
 *.iws
 .idea/
+
+# Fastlane / Bundler generated files
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+vendor/bundle/

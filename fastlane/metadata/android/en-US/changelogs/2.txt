@@ -1,0 +1,3 @@
+- Rewrote LCD buffering in native C and migrated UI code to Kotlin
+- Added 16 KB page size support for modern Android devices
+- Updated Android Gradle Plugin, NDK, and Jetpack dependencies

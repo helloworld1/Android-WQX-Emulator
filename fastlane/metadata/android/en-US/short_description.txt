@@ -1,0 +1,1 @@
+Classic WQX NC1020 electronic dictionary emulator with sound & voice support.

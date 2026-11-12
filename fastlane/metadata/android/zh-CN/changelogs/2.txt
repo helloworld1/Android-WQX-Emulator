@@ -1,0 +1,3 @@
+- 使用原生 C 重写 LCD 屏幕缓冲并将界面代码迁移至 Kotlin
+- 新增对现代 Android 设备 16 KB 页面大小的支持
+- 升级 Android Gradle 插件、NDK 与依赖库版本

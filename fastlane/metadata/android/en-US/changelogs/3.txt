@@ -1,0 +1,2 @@
+- Added Material 3 UI styling
+- Added Light, Dark, and Follow System theme options in Settings

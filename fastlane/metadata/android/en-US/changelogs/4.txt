@@ -1,0 +1,5 @@
+- Added low-latency audio emulation for key beeps, melodies, English pronunciation, and voice time announcement
+- Fixed real-time clock synchronization with Android system date and time
+- Added landscape layout (screen on left, keypad on right) and centered portrait layout
+- Updated keypad input to register on key release to prevent accidental presses
+- Updated target SDK to Android 37
