@@ -22,14 +22,31 @@ class KeypadLayout : LinearLayout {
         if (keyCode == -1 || onButtonPressedListener == null) {
             return@OnTouchListener false
         }
-        val action = event.action
-        if (action == MotionEvent.ACTION_DOWN) {
-            onButtonPressedListener!!.onKeyDown(keyCode)
-        } else if (action == MotionEvent.ACTION_UP
-                || action == MotionEvent.ACTION_CANCEL) {
-            onButtonPressedListener!!.onKeyUp(keyCode)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                v.drawableHotspotChanged(event.x, event.y)
+                v.isPressed = true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (v.isPressed) {
+                    val x = event.x
+                    val y = event.y
+                    if (x < 0f || x > v.width || y < 0f || y > v.height) {
+                        v.isPressed = false
+                    }
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (v.isPressed) {
+                    v.isPressed = false
+                    onButtonPressedListener?.onKeyReleased(keyCode)
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                v.isPressed = false
+            }
         }
-        false
+        true
     }
 
     constructor(context: Context?) : super(context) {
@@ -119,7 +136,6 @@ class KeypadLayout : LinearLayout {
     }
 
     interface OnButtonPressedListener {
-        fun onKeyDown(keyCode: Int)
-        fun onKeyUp(keyCode: Int)
+        fun onKeyReleased(keyCode: Int)
     }
 }

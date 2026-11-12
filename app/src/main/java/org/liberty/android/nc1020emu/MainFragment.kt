@@ -45,16 +45,15 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.lang.RuntimeException
 import java.nio.ByteBuffer
+import java.util.ArrayDeque
 import java.util.Calendar
 import java.util.concurrent.Executors
 
 class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val lcdBufferEx = ByteArray(1600 * 8)
     private val wakeMonitor = Object()
-    @Volatile
-    private var keyDownWakePending = false
-    @Volatile
-    private var keyUpWakePending = false
+    private val pendingKeyPresses = ArrayDeque<Int>()
+    private var clearActiveKeyRequested = false
     private var lcdBitmap= Bitmap.createBitmap(160, 80, Bitmap.Config.ALPHA_8)
     private var lcdMatrix = Matrix()
     @Volatile
@@ -83,18 +82,70 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         var pendingNs = 0L
         var debtNs = 0L
         var noRepayUntilNs = 0L
+        var activeKeyCode = -1
+        var keyDownAtCycles = 0L
+        var releaseAtCycles = 0L
+        var nextKeyReadyAtCycles = 0L
         try {
             while (isRunning) {
                 val nowNs = System.nanoTime()
                 pendingNs += (nowNs - lastSliceNs).coerceIn(0L, 100_000_000L)
                 lastSliceNs = nowNs
 
+                var justPressedKey = false
+                var justReleasedKey = false
+
+                var shouldClearKey = false
+                var hasQueuedKey = false
+                synchronized(wakeMonitor) {
+                    if (clearActiveKeyRequested) {
+                        clearActiveKeyRequested = false
+                        shouldClearKey = true
+                    }
+                    hasQueuedKey = pendingKeyPresses.isNotEmpty()
+                }
+
+                if (shouldClearKey) {
+                    if (activeKeyCode != -1) {
+                        setKey(activeKeyCode, false)
+                        activeKeyCode = -1
+                    }
+                    nextKeyReadyAtCycles = 0L
+                }
+
+                val currentCycles = cycles
+                if (activeKeyCode != -1) {
+                    val heldCycles = currentCycles - keyDownAtCycles
+                    if (currentCycles >= releaseAtCycles ||
+                        (hasQueuedKey && heldCycles >= MIN_KEY_HOLD_CYCLES)
+                    ) {
+                        setKey(activeKeyCode, false)
+                        activeKeyCode = -1
+                        nextKeyReadyAtCycles = currentCycles + KEY_GAP_CYCLES
+                        justReleasedKey = true
+                    }
+                }
+
+                if (activeKeyCode == -1 && currentCycles >= nextKeyReadyAtCycles) {
+                    var nextKey = -1
+                    synchronized(wakeMonitor) {
+                        if (pendingKeyPresses.isNotEmpty()) {
+                            nextKey = pendingKeyPresses.removeFirst()
+                        }
+                    }
+                    if (nextKey != -1) {
+                        setKey(nextKey, true)
+                        activeKeyCode = nextKey
+                        keyDownAtCycles = currentCycles
+                        releaseAtCycles = currentCycles + KEY_HOLD_CYCLES
+                        justPressedKey = true
+                    }
+                }
+
                 if (speedUp) {
                     runTimeSlice(FRAME_INTERVAL, true)
                     pendingNs = 0L
                     debtNs = 0L
-                    keyDownWakePending = false
-                    keyUpWakePending = false
                     if (nowNs - lastLcdCopyNs >= LCD_INTERVAL_NS) {
                         synchronized(lcdBufferEx) {
                             copyLcdBufferEx(lcdBufferEx)
@@ -102,10 +153,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                         lastLcdCopyNs = nowNs
                     }
                 } else {
-                    if (keyDownWakePending) {
-                        keyDownWakePending = false
-                        keyUpWakePending = false
-                        // Immediately run 7ms on key-down (~0.1ms on host CPU) so the next 256 Hz
+                    if (justPressedKey) {
+                        // Immediately run 7ms on key release (~0.1ms on host CPU) so the next 256 Hz
                         // timer1 IRQ scans the aligned keypad row and queues beep audio right now.
                         val elapsedMs = (pendingNs / 1_000_000L).toInt()
                         val borrowMs = if (debtNs < 10_000_000L) (7 - elapsedMs).coerceAtLeast(0) else 0
@@ -123,9 +172,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                         if (sliceMs > 0) {
                             runTimeSlice(sliceMs, false)
                             pendingNs -= sliceMs * 1_000_000L
-                            keyUpWakePending = false
-                        } else if (keyUpWakePending && debtNs < 12_000_000L) {
-                            keyUpWakePending = false
+                        } else if (justReleasedKey && debtNs < 12_000_000L) {
                             runTimeSlice(1, false)
                             debtNs += 1_000_000L
                         }
@@ -141,13 +188,24 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
                     val waitNs = SLICE_INTERVAL_NS - pendingNs - (afterSliceNs - nowNs)
                     if (waitNs > 200_000L && isRunning && !speedUp) {
+                        val postSliceCycles = cycles
                         synchronized(wakeMonitor) {
-                            if (isRunning && !speedUp && !keyDownWakePending && !keyUpWakePending) {
+                            val readyForImmediateKeyStep =
+                                clearActiveKeyRequested ||
+                                (pendingKeyPresses.isNotEmpty() && (
+                                    (activeKeyCode == -1 && postSliceCycles >= nextKeyReadyAtCycles) ||
+                                    (activeKeyCode != -1 && postSliceCycles - keyDownAtCycles >= MIN_KEY_HOLD_CYCLES)
+                                ))
+                            if (isRunning && !speedUp && !readyForImmediateKeyStep) {
                                 wakeMonitor.wait(waitNs / 1_000_000L, (waitNs % 1_000_000L).toInt())
                             }
                         }
                     }
                 }
+            }
+            if (activeKeyCode != -1) {
+                setKey(activeKeyCode, false)
+                activeKeyCode = -1
             }
             if (saveStatesSetting) {
                 save()
@@ -168,14 +226,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         lcdSurface = view.findViewById(R.id.lcd_surface)
         infoText = view.findViewById(R.id.info_text)
         keypadLayout.setOnButtonTouchListener(object : OnButtonPressedListener {
-            override fun onKeyDown(keyCode: Int) {
-                setKey(keyCode, true)
-                wakeEmulationThread(keyDown = true)
-            }
-
-            override fun onKeyUp(keyCode: Int) {
-                setKey(keyCode, false)
-                wakeEmulationThread(keyUp = true)
+            override fun onKeyReleased(keyCode: Int) {
+                enqueueKeyPress(keyCode)
             }
         })
         val width = screenWidth
@@ -204,6 +256,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_restart -> {
+                    clearQueuedKeys()
                     syncSystemTime()
                     reset()
                     return@setOnMenuItemClickListener true
@@ -216,6 +269,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_load -> {
+                    clearQueuedKeys()
                     syncSystemTime()
                     load()
                     return@setOnMenuItemClickListener true
@@ -297,14 +351,25 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         Choreographer.getInstance().removeFrameCallback(this)
     }
 
-    private fun wakeEmulationThread(keyDown: Boolean = false, keyUp: Boolean = false) {
+    private fun enqueueKeyPress(keyCode: Int) {
         synchronized(wakeMonitor) {
-            if (keyDown) {
-                keyDownWakePending = true
+            if (pendingKeyPresses.size < MAX_PENDING_KEYS) {
+                pendingKeyPresses.addLast(keyCode)
             }
-            if (keyUp) {
-                keyUpWakePending = true
-            }
+            wakeMonitor.notifyAll()
+        }
+    }
+
+    private fun clearQueuedKeys() {
+        synchronized(wakeMonitor) {
+            pendingKeyPresses.clear()
+            clearActiveKeyRequested = true
+            wakeMonitor.notifyAll()
+        }
+    }
+
+    private fun wakeEmulationThread() {
+        synchronized(wakeMonitor) {
             wakeMonitor.notifyAll()
         }
     }
@@ -352,6 +417,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     }
 
     private fun factoryReset() {
+        clearQueuedKeys()
         val filesDir = requireContext().applicationContext.filesDir.absolutePath
         val norFile = File("$filesDir/$NOR_FILE_NAME")
         val stateFile = File("$filesDir/$STATE_FILE_NAME")
@@ -408,6 +474,11 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         private const val SLICE_INTERVAL_NS = 3_000_000L
         private const val LCD_INTERVAL_NS = 16_666_667L
         private const val CYCLES_SECOND: Long = 5120000
+        private const val CYCLES_MS: Long = CYCLES_SECOND / 1000
+        private const val KEY_HOLD_CYCLES: Long = 45 * CYCLES_MS
+        private const val MIN_KEY_HOLD_CYCLES: Long = 35 * CYCLES_MS
+        private const val KEY_GAP_CYCLES: Long = 35 * CYCLES_MS
+        private const val MAX_PENDING_KEYS = 16
         private const val ROM_FILE_NAME = "obj_lu.bin"
         private const val NOR_FILE_NAME = "nc1020.fls"
         private const val STATE_FILE_NAME = "nc1020.sts"
