@@ -22,4 +22,8 @@
         app:entryValues="@array/theme_values"
         app:defaultValue="system"
         app:useSimpleSummaryProvider="true"/>
+
+    <androidx.preference.Preference
+        app:key="about"
+        app:title="@string/about"/>
 </androidx.preference.PreferenceScreen>

@@ -32,3 +32,4 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/test_output/
 vendor/bundle/
+google_play_release/

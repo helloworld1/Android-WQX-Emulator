@@ -20,6 +20,9 @@
         android:id="@+id/action_settings"
         android:title="@string/settings"/>
     <item
+        android:id="@+id/action_about"
+        android:title="@string/about"/>
+    <item
         android:id="@+id/action_quit"
         android:title="@string/action_quit"/>
 

@@ -369,6 +369,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     Navigation.findNavController(toolbar).navigate(R.id.action_mainFragment_to_settingsFragment)
                     return@setOnMenuItemClickListener true
                 }
+                R.id.action_about -> {
+                    Navigation.findNavController(toolbar).navigate(R.id.action_mainFragment_to_aboutFragment)
+                    return@setOnMenuItemClickListener true
+                }
                 else -> return@setOnMenuItemClickListener false
             }
         }

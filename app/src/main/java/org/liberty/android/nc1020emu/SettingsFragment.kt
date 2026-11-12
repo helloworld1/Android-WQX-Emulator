@@ -5,7 +5,9 @@ import android.view.View
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.navigation.fragment.findNavController
 import androidx.preference.ListPreference
+import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 
 class SettingsFragment : PreferenceFragmentCompat() {
@@ -20,6 +22,11 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
             }
             AppCompatDelegate.setDefaultNightMode(mode)
+            true
+        }
+
+        findPreference<Preference>("about")?.setOnPreferenceClickListener {
+            findNavController().navigate(R.id.action_settingsFragment_to_aboutFragment)
             true
         }
     }
