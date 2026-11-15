@@ -57,6 +57,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val wakeMonitor = Object()
     private val pendingKeyPresses = ArrayDeque<Int>()
     private var clearActiveKeyRequested = false
+    private var resetRequested = false
     private var lcdBitmap= Bitmap.createBitmap(160, 80, Bitmap.Config.ALPHA_8)
     private var lcdMatrix = Matrix()
     @Volatile
@@ -101,14 +102,39 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                 var justPressedKey = false
                 var justReleasedKey = false
 
+                var shouldReset = false
                 var shouldClearKey = false
                 var hasQueuedKey = false
                 synchronized(wakeMonitor) {
-                    if (clearActiveKeyRequested) {
+                    if (resetRequested) {
+                        resetRequested = false
+                        clearActiveKeyRequested = false
+                        pendingKeyPresses.clear()
+                        shouldReset = true
+                    } else if (clearActiveKeyRequested) {
                         clearActiveKeyRequested = false
                         shouldClearKey = true
                     }
                     hasQueuedKey = pendingKeyPresses.isNotEmpty()
+                }
+
+                if (shouldReset) {
+                    activeKeyCode = -1
+                    keyDownAtCycles = 0L
+                    releaseAtCycles = 0L
+                    nextKeyReadyAtCycles = 0L
+                    pendingNs = 0L
+                    debtNs = 0L
+                    noRepayUntilNs = 0L
+                    syncSystemTime()
+                    reset()
+                    runTimeSlice(1, false)
+                    synchronized(lcdBufferEx) {
+                        copyLcdBufferEx(lcdBufferEx)
+                    }
+                    lastLcdCopyNs = System.nanoTime()
+                    lastSliceNs = lastLcdCopyNs
+                    continue
                 }
 
                 if (shouldClearKey) {
@@ -197,6 +223,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                         val postSliceCycles = cycles
                         synchronized(wakeMonitor) {
                             val readyForImmediateKeyStep =
+                                resetRequested ||
                                 clearActiveKeyRequested ||
                                 (pendingKeyPresses.isNotEmpty() && (
                                     (activeKeyCode == -1 && postSliceCycles >= nextKeyReadyAtCycles) ||
@@ -239,6 +266,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         keypadLayout.setOnButtonTouchListener(object : OnButtonPressedListener {
             override fun onKeyReleased(keyCode: Int) {
                 enqueueKeyPress(keyCode)
+            }
+
+            override fun onResetReleased() {
+                showResetDialog()
             }
         })
         lcdSurface.holder.addCallback(this)
@@ -339,9 +370,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_restart -> {
-                    clearQueuedKeys()
-                    syncSystemTime()
-                    reset()
+                    performReset()
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_speed_up -> {
@@ -492,6 +521,39 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     private val beepEnabledSetting: Boolean
         get() = preferences.getBoolean(ENABLE_BEEP_KEY, true)
+
+    private fun showResetDialog() {
+        AlertDialog.Builder(requireContext())
+                .setTitle(R.string.reset_wqx)
+                .setMessage(R.string.reset_wqx_message)
+                .setPositiveButton(R.string.yes) { _: DialogInterface?, _: Int -> performReset() }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+    }
+
+    private fun performReset() {
+        lastCycles = 0L
+        if (!isRunning || runningFuture == null) {
+            synchronized(wakeMonitor) {
+                pendingKeyPresses.clear()
+                clearActiveKeyRequested = false
+                resetRequested = false
+            }
+            syncSystemTime()
+            reset()
+            runTimeSlice(1, false)
+            synchronized(lcdBufferEx) {
+                copyLcdBufferEx(lcdBufferEx)
+            }
+            updateLcd()
+            return
+        }
+        synchronized(wakeMonitor) {
+            pendingKeyPresses.clear()
+            resetRequested = true
+            wakeMonitor.notifyAll()
+        }
+    }
 
     private fun showFactoryResetDialog() {
         AlertDialog.Builder(requireContext())

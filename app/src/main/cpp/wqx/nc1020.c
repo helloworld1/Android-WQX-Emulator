@@ -614,37 +614,14 @@ void initialize(const char *rom_file_path, const char *nor_file_path, const char
 }
 
 static void reset_states(){
+	memset(&_nc1020_states, 0, sizeof(_nc1020_states));
 	_nc1020_states.version = VERSION;
 
-	memset(_ram_buff, 0, 0x8000);
 	_memmap[0] = _ram_page0;
 	_memmap[2] = _ram_page2;
     switch_volume();
 
-	memset(_keypad_matrix, 0, 8);
-
-	memset(_clock_buff, 0, 80);
-	_nc1020_states.clock_flags = 0;
-
-	_nc1020_states.timer0_toggle = false;
-
-	memset(_jg_wav_buff, 0, 0x20);
-	_nc1020_states.jg_wav_flags = 0;
-	_nc1020_states.jg_wav_idx = 0;
-
-	_nc1020_states.should_wake_up = false;
-	_nc1020_states.pending_wake_up = false;
-
-	memset(_fp_buff, 0, 0x100);
-	_nc1020_states.fp_step = 0;
-
-	_nc1020_states.should_irq = false;
-
-	_nc1020_states.cycles = 0;
-	_nc1020_states.cpu.reg_a = 0;
 	_nc1020_states.cpu.reg_ps = 0x24;
-	_nc1020_states.cpu.reg_x = 0;
-	_nc1020_states.cpu.reg_y = 0;
 	_nc1020_states.cpu.reg_sp = 0xFF;
 	_nc1020_states.cpu.reg_pc = peek_word(RESET_VEC);
 	_nc1020_states.timer0_cycles = CYCLES_TIMER0;
@@ -692,7 +669,6 @@ static void save_states(){
 }
 
 void reset() {
-    load_nor();
     reset_states();
 }
 

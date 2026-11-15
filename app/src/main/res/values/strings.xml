@@ -10,6 +10,8 @@
     <string name="perf_text" translatable="false">FPS: %d, Cycles: %d, Speed: %d%%</string>
     <string name="factory_reset">Factory reset</string>
     <string name="factory_reset_message">Would you like to reset to factory state?</string>
+    <string name="reset_wqx">Reset</string>
+    <string name="reset_wqx_message">Would you like to reset WQX?</string>
     <string name="yes">Yes</string>
     <string name="cancel">Cancel</string>
     <string name="settings">Settings</string>

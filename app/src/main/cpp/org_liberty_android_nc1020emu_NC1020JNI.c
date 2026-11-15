@@ -53,11 +53,13 @@ JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_runTimeSlice
  */
 JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_copyLcdBufferEx
         (JNIEnv *env, jclass type, jbyteArray buffer) {
-    jbyte* buffer_ex= (*env)->GetByteArrayElements(env, buffer, NULL);
-
     uint8_t* lcd_buffer = get_lcd_buffer();
 
     if (lcd_buffer == NULL)
+        return false;
+
+    jbyte* buffer_ex = (*env)->GetByteArrayElements(env, buffer, NULL);
+    if (buffer_ex == NULL)
         return false;
 
     for (int y = 0; y < 80; y++) {
