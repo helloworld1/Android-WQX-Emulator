@@ -177,8 +177,13 @@ static void patch_rom_compatibility(void) {
         0x00, 0x0D, 0xC0, 0xA5, 0xC4, 0xA2, 0x00, 0x86, 0xC4,
         0x86, 0xC5, 0x86, 0xC7, 0x29, 0x04, 0xD0, 0x01, 0x60
     };
+    static const uint8_t orig_97b9[12] = {
+        0xA5, 0xC4, 0xA2, 0x00, 0x86, 0xC4, 0x86, 0xC5,
+        0x86, 0xC7, 0xF0, 0xF1
+    };
     if (memcmp(b85 + 0x55F8, orig_95f8, sizeof(orig_95f8)) != 0 ||
         memcmp(b85 + 0x5752, orig_9752, sizeof(orig_9752)) != 0 ||
+        memcmp(b85 + 0x57B9, orig_97b9, sizeof(orig_97b9)) != 0 ||
         b85[0x567D] != 0x86 || b85[0x567E] != 0xC5 ||
         b85[0x56F7] != 0x86 || b85[0x56F8] != 0xC5 ||
         b85[0x576D] != 0x86 || b85[0x576E] != 0xC5 ||
@@ -283,6 +288,15 @@ static void patch_rom_compatibility(void) {
     b85[0x579F] = 0x20u;
     b85[0x57A0] = 0xE0u;
     b85[0x57A1] = 0xBFu; // $979F: JSR $BFE0
+
+    // Fix Pause loop ($97B9..$97C4): original `LDA $C4; LDX #$00; STX $C4; STX $C5; STX $C7; BEQ`
+    // sets Z=1 unconditionally via `LDX #$00`, making Pause an infinite loop where neither P nor ESC works.
+    b85[0x57B9] = 0xA2u;
+    b85[0x57BA] = 0x00u; // $97B9: LDX #$00
+    b85[0x57BB] = 0xA5u;
+    b85[0x57BC] = 0xC4u; // $97BB: LDA $C4 (Z reflects $C4 through STX $C4 / NOP / STX $C7 into BEQ $97B6)
+    b85[0x57BF] = 0xEAu;
+    b85[0x57C0] = 0xEAu; // $97BF: NOP; NOP (keep live $C5)
 }
 
 static void load_rom(){
