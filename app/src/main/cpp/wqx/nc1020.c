@@ -160,6 +160,131 @@ static void process_binary(uint8_t *dest, uint8_t *src, uint64_t size){
     }
 }
 
+static void patch_rom_compatibility(void) {
+    // Fix input edge masking and uninterruptible DAS sleep in 方块世界 (Volume 0, Bank 0x85).
+    // The original routine at $95FB..$961D and $9752..$9763 zeroes live key-hold state ($C5)
+    // and masks Move Left ($08), Move Right ($10), and Soft Drop ($02) edges out of $C4
+    // unless the key is still physically held when the poll runs, dropping most short taps.
+    uint8_t *b85 = _rom_buff + (0x85u * 0x8000u);
+    static const uint8_t orig_95f8[38] = {
+        0x20, 0xF7, 0x9D, 0xA2, 0x19, 0x00, 0x0D, 0xC0,
+        0xA5, 0xC4, 0xA2, 0x00, 0x86, 0xC4, 0x86, 0xC5,
+        0x86, 0xC7, 0x29, 0xE7, 0x85, 0xC4, 0xA5, 0xC5,
+        0x29, 0x18, 0x05, 0xC4, 0x85, 0xC4, 0xA5, 0xC5,
+        0x09, 0xFD, 0x25, 0xC4, 0x85, 0xC4
+    };
+    static const uint8_t orig_9752[18] = {
+        0x00, 0x0D, 0xC0, 0xA5, 0xC4, 0xA2, 0x00, 0x86, 0xC4,
+        0x86, 0xC5, 0x86, 0xC7, 0x29, 0x04, 0xD0, 0x01, 0x60
+    };
+    if (memcmp(b85 + 0x55F8, orig_95f8, sizeof(orig_95f8)) != 0 ||
+        memcmp(b85 + 0x5752, orig_9752, sizeof(orig_9752)) != 0 ||
+        b85[0x567D] != 0x86 || b85[0x567E] != 0xC5 ||
+        b85[0x56F7] != 0x86 || b85[0x56F8] != 0xC5 ||
+        b85[0x576D] != 0x86 || b85[0x576E] != 0xC5 ||
+        b85[0x579F] != 0x20 || b85[0x57A0] != 0x2D || b85[0x57A1] != 0x99) {
+        return;
+    }
+    for (size_t i = 0x7F80u; i < 0x8000u; i++) {
+        if (b85[i] != 0xFFu) {
+            return;
+        }
+    }
+
+    // $BF80: Interruptible DAS/idle wait (wakes immediately on new $C4 edge or DAS key release).
+    static const uint8_t helper_bf80[] = {
+        0x8D, 0x64, 0x04, // $BF80: STA $0464
+        0xA5, 0xC4,       // $BF83: LDA $C4
+        0xD0, 0x16,       // $BF85: BNE $BF9D
+        0x00, 0x0D, 0xC0, // $BF87: INT $C00D
+        0xA5, 0xC4,       // $BF8A: LDA $C4
+        0xD0, 0x0F,       // $BF8C: BNE $BF9D
+        0xA5, 0x4E,       // $BF8E: LDA $4E
+        0xF0, 0x06,       // $BF90: BEQ $BF98
+        0xA5, 0xC5,       // $BF92: LDA $C5
+        0x29, 0x1A,       // $BF94: AND #$1A
+        0xF0, 0x05,       // $BF96: BEQ $BF9D
+        0xAD, 0x64, 0x04, // $BF98: LDA $0464
+        0xD0, 0xEA,       // $BF9B: BNE $BF87
+        0x60              // $BF9D: RTS
+    };
+    // $BFA0: Preserve tap edges in $C4, reset DAS ($4E) on new directional tap, merge held $C5.
+    static const uint8_t helper_bfa0[] = {
+        0xA5, 0xC4,       // $BFA0: LDA $C4
+        0xA2, 0x00,       // $BFA2: LDX #$00
+        0x86, 0xC4,       // $BFA4: STX $C4
+        0x86, 0xC7,       // $BFA6: STX $C7
+        0x48,             // $BFA8: PHA
+        0x29, 0x1A,       // $BFA9: AND #$1A
+        0xF0, 0x06,       // $BFAB: BEQ $BFB3
+        0x86, 0x4E,       // $BFAD: STX $4E
+        0x68,             // $BFAF: PLA
+        0x4C, 0xBC, 0xBF, // $BFB0: JMP $BFBC
+        0x68,             // $BFB3: PLA
+        0x85, 0xC4,       // $BFB4: STA $C4
+        0xA5, 0xC5,       // $BFB6: LDA $C5
+        0x29, 0x1A,       // $BFB8: AND #$1A
+        0x05, 0xC4,       // $BFBA: ORA $C4
+        0x85, 0xC4,       // $BFBC: STA $C4
+        0xA2, 0x19,       // $BFBE: LDX #$19
+        0x60              // $BFC0: RTS
+    };
+    // $BFD0: Arm initial DAS ($C8) after horizontal move without wiping $C4/$C5; test Rotate ($04).
+    static const uint8_t helper_bfd0[] = {
+        0xA5, 0x4E,       // $BFD0: LDA $4E
+        0xD0, 0x06,       // $BFD2: BNE $BFDA
+        0xC6, 0x4E,       // $BFD4: DEC $4E
+        0xA9, 0xC8,       // $BFD6: LDA #$C8
+        0x85, 0x53,       // $BFD8: STA $53
+        0xA5, 0xC4,       // $BFDA: LDA $C4
+        0x29, 0x04,       // $BFDC: AND #$04
+        0x60              // $BFDE: RTS
+    };
+    // $BFE0: Arm initial DAS ($C8) after soft drop when entered directly via $96EE.
+    static const uint8_t helper_bfe0[] = {
+        0x20, 0x2D, 0x99, // $BFE0: JSR $992D
+        0xA5, 0x4E,       // $BFE3: LDA $4E
+        0xD0, 0x06,       // $BFE5: BNE $BFED
+        0xC6, 0x4E,       // $BFE7: DEC $4E
+        0xA9, 0xC8,       // $BFE9: LDA #$C8
+        0x85, 0x53,       // $BFEB: STA $53
+        0x60              // $BFED: RTS
+    };
+    // Keep INT $C00D at $95FD and $9752 at their exact original addresses for saved-state safety.
+    static const uint8_t patch_95f8[38] = {
+        0x20, 0x80, 0xBF, // $95F8: JSR $BF80
+        0xA2, 0x19,       // $95FB: LDX #$19
+        0x00, 0x0D, 0xC0, // $95FD: INT $C00D
+        0x20, 0xA0, 0xBF, // $9600: JSR $BFA0
+        0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA,
+        0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA,
+        0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA
+    };
+    static const uint8_t patch_9752[18] = {
+        0x00, 0x0D, 0xC0, // $9752: INT $C00D
+        0x20, 0xD0, 0xBF, // $9755: JSR $BFD0
+        0xD0, 0x0A,       // $9758: BNE $9764
+        0x60,             // $975A: RTS
+        0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA,
+        0x60              // $9763: RTS
+    };
+
+    memcpy(b85 + 0x7F80, helper_bf80, sizeof(helper_bf80));
+    memcpy(b85 + 0x7FA0, helper_bfa0, sizeof(helper_bfa0));
+    memcpy(b85 + 0x7FD0, helper_bfd0, sizeof(helper_bfd0));
+    memcpy(b85 + 0x7FE0, helper_bfe0, sizeof(helper_bfe0));
+    memcpy(b85 + 0x55F8, patch_95f8, sizeof(patch_95f8));
+    memcpy(b85 + 0x5752, patch_9752, sizeof(patch_9752));
+    b85[0x567E] = 0x4Eu; // $967D: STX $4E (reset DAS on piece lock instead of zeroing $C5)
+    b85[0x56F7] = 0xEAu;
+    b85[0x56F8] = 0xEAu; // $96F7: NOP; NOP (keep live $C5 in $96EE)
+    b85[0x576D] = 0xEAu;
+    b85[0x576E] = 0xEAu; // $976D: NOP; NOP (keep live $C5 in Rotate)
+    b85[0x579F] = 0x20u;
+    b85[0x57A0] = 0xE0u;
+    b85[0x57A1] = 0xBFu; // $979F: JSR $BFE0
+}
+
 static void load_rom(){
 	uint8_t* temp_buff = (uint8_t*)malloc(ROM_SIZE);
 	FILE* file = fopen(_rom_file_path, "rbe");
@@ -167,6 +292,7 @@ static void load_rom(){
     process_binary(_rom_buff, temp_buff, ROM_SIZE);
 	free(temp_buff);
 	fclose(file);
+    patch_rom_compatibility();
 }
 
 static void load_nor(){
