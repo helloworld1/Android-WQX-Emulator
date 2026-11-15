@@ -13,6 +13,8 @@
 #define ORDER 10
 #define FADE_RANGE 12
 #define WORD_BUF_MAX (240 * 128)
+#define DSP_CYCLES_PER_SAMPLE 640u
+#define PCM_STREAM_GAP_CYCLES 40960u
 
 #define DSP_SLEEP_FLAG            0x80u
 #define DSP_RETURN_DATA_READY_FLAG 0x40u
@@ -191,6 +193,11 @@ static int32_t _word_buf_len = 0;
 static int32_t _c2 = 0, _c4 = 0, _c8 = 0;
 static int32_t _data_cnt = 0;
 
+static bool _pcm_has_prev = false;
+static int16_t _pcm_prev_sample = 0;
+static uint64_t _pcm_prev_cycle = 0;
+static uint32_t _pcm_cycle_rem = 0;
+
 static inline int32_t rounding(int32_t mul, int32_t p) {
     return (mul + (1 << (p - 1))) >> p;
 }
@@ -207,6 +214,10 @@ static void dsp_reset_core(void) {
     dsp_start();
     _word_buf_len = 0;
     _dsp_mode = CELP_MODE;
+    _pcm_has_prev = false;
+    _pcm_prev_sample = 0;
+    _pcm_prev_cycle = 0;
+    _pcm_cycle_rem = 0;
 }
 
 static void root_rs(const int32_t hx_root_in_po[5], int32_t hx_pcoef[5]) {
@@ -573,14 +584,36 @@ static void dsp_celp_to_celp(void) {
     emit_samples_8000(_sout, len);
 }
 
-static void dsp_write_word(uint8_t high, uint8_t low) {
+static void dsp_write_word(uint8_t high, uint8_t low, uint64_t current_cycle) {
     if (_dsp_mode == PCM_MODE) {
         if (high == 0xffu) {
             _dsp_mode = CELP_MODE;
+            _pcm_has_prev = false;
+            _pcm_cycle_rem = 0;
         } else {
             int32_t val = (((int32_t)high << 8) | low) - 0x8000;
             int16_t pcm = (int16_t)(val & 0xffff);
-            emit_samples_8000(&pcm, 1);
+            if (!_pcm_has_prev || current_cycle <= _pcm_prev_cycle ||
+                (current_cycle - _pcm_prev_cycle) > PCM_STREAM_GAP_CYCLES) {
+                _pcm_has_prev = true;
+                _pcm_prev_sample = pcm;
+                _pcm_prev_cycle = current_cycle;
+                _pcm_cycle_rem = 0;
+                emit_samples_8000(&pcm, 1);
+            } else {
+                uint64_t dt = current_cycle - _pcm_prev_cycle;
+                uint64_t pos = DSP_CYCLES_PER_SAMPLE - _pcm_cycle_rem;
+                while (pos <= dt) {
+                    int16_t interp = (int16_t)((int32_t)_pcm_prev_sample +
+                        (int32_t)(((int64_t)((int32_t)pcm - (int32_t)_pcm_prev_sample) * (int64_t)pos) /
+                                  (int64_t)dt));
+                    emit_samples_8000(&interp, 1);
+                    pos += DSP_CYCLES_PER_SAMPLE;
+                }
+                _pcm_cycle_rem = (uint32_t)((_pcm_cycle_rem + dt) % DSP_CYCLES_PER_SAMPLE);
+                _pcm_prev_sample = pcm;
+                _pcm_prev_cycle = current_cycle;
+            }
         }
         return;
     }
@@ -614,6 +647,8 @@ static void dsp_write_word(uint8_t high, uint8_t low) {
         }
         _dsp_mode = low;
         _data_cnt = 0;
+        _pcm_has_prev = false;
+        _pcm_cycle_rem = 0;
         return;
     }
 
@@ -789,6 +824,6 @@ void dsp_write_cmd_high(uint8_t value, uint64_t current_cycle) {
     }
     if (value == 0xa0u || (value & 0xc0u) || _dsp_mode == PCM_MODE ||
         ((_dsp_mode == CELP_MODE || _dsp_mode == WORD_MODE) && value < 0x60u)) {
-        dsp_write_word(value, _dsp_data_low);
+        dsp_write_word(value, _dsp_data_low, current_cycle);
     }
 }

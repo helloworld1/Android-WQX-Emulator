@@ -178,7 +178,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x80)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;
@@ -391,7 +391,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x80)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;
@@ -594,7 +594,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x40)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;
@@ -815,7 +815,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x40)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;
@@ -1013,7 +1013,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x01)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;
@@ -1207,7 +1207,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x01)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;
@@ -1436,7 +1436,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if (!(reg_ps & 0x02)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;
@@ -1662,7 +1662,7 @@ uint64_t execute_6502(cpu_states_t *cpu_states) {
             int8_t tmp4 = (int8_t) (_peek_byte(reg_pc++));
             uint16_t addr = reg_pc + tmp4;
             if ((reg_ps & 0x02)) {
-                cycles += !((reg_pc ^ addr) & 0xFF00) << 1;
+                cycles += ((reg_pc ^ addr) & 0xFF00) ? 2 : 1;
                 reg_pc = addr;
             }
             cycles += 2;

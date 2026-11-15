@@ -65,7 +65,7 @@ static void flush_temp_chunk(bool dsp_playing) {
     if (_temp_count == 0) {
         return;
     }
-    size_t max_ring = dsp_playing ? AUDIO_RING_CAPACITY : (_output_rate / 32u);
+    size_t max_ring = dsp_playing ? AUDIO_RING_CAPACITY : (_output_rate / 8u);
     if (max_ring > AUDIO_RING_CAPACITY) {
         max_ring = AUDIO_RING_CAPACITY;
     } else if (max_ring < 512u) {

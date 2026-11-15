@@ -63,37 +63,63 @@ static uint8_t *_fp_buff;
 
 static uint8_t *_keypad_matrix;
 
+// 5,120,000 Hz CPU clock vs 920,000 Hz hardware Timer 0 base clock (3.68 MHz / 4):
+// 1 CPU cycle = 23 sub-units, 1 tm0 tick = 128 sub-units (exact integer ratio, zero drift).
+#define TM0_SUB_PER_CYCLE 23u
+#define TM0_SUB_PER_TICK  128u
+#define TM0_MAX_LAG_SUB   (16u * 256u * TM0_SUB_PER_TICK)
+
 static bool _tm0_running = false;
-static uint64_t _tm0_slice_deadline = 0;
-static uint64_t _current_slice_cycles = 0;
+static bool _tm0_awaiting_reload = false;
+static uint64_t _tm0_deadline_sub = 0;
+static uint64_t _tm0_overflow_sub = 0;
+static uint64_t _tm0_next_cycle = 0;
 static bool _pending_cold_boot_sync = false;
 static bool _has_tz_offset = false;
 static int32_t _tz_offset_sec = 0;
 
 static void sync_time(void);
 
-static uint64_t tm0_cycles_for_counter(uint8_t counter) {
+static uint64_t tm0_sub_for_counter(uint8_t counter) {
     uint8_t io0c = _ram_buff[0x0C];
     uint8_t tmodesl = io0c >> 6u;
     uint8_t shift = (tmodesl == 1u) ? ((io0c >> 4u) & 3u) : ((io0c >> 3u) & 7u);
     uint64_t ticks = (uint64_t) (256u - counter) << shift;
-    uint64_t c = (ticks * 504u) / 193u;
-    return c < 16u ? 16u : c;
+    return ticks * TM0_SUB_PER_TICK;
+}
+
+static inline void tm0_update_next_cycle(void) {
+    _tm0_next_cycle = (_tm0_deadline_sub + (TM0_SUB_PER_CYCLE - 1u)) / TM0_SUB_PER_CYCLE;
 }
 
 void nc1020_tm0_start(uint8_t counter) {
     _tm0_running = true;
-    _tm0_slice_deadline = _current_slice_cycles + tm0_cycles_for_counter(counter);
+    _tm0_awaiting_reload = false;
+    uint64_t now_sub = _nc1020_states.cycles * TM0_SUB_PER_CYCLE;
+    _tm0_deadline_sub = now_sub + tm0_sub_for_counter(counter);
+    _tm0_overflow_sub = now_sub;
+    tm0_update_next_cycle();
 }
 
 void nc1020_tm0_stop(void) {
     _tm0_running = false;
+    _tm0_awaiting_reload = false;
 }
 
 void nc1020_tm0_set_counter(uint8_t counter) {
-    if (_tm0_running) {
-        _tm0_slice_deadline = _current_slice_cycles + tm0_cycles_for_counter(counter);
+    if (!_tm0_running) {
+        return;
     }
+    uint64_t now_sub = _nc1020_states.cycles * TM0_SUB_PER_CYCLE;
+    uint64_t step_sub = tm0_sub_for_counter(counter);
+    if (_tm0_awaiting_reload && now_sub <= _tm0_overflow_sub + TM0_MAX_LAG_SUB) {
+        _tm0_awaiting_reload = false;
+        _tm0_deadline_sub = _tm0_overflow_sub + step_sub;
+    } else {
+        _tm0_awaiting_reload = false;
+        _tm0_deadline_sub = now_sub + step_sub;
+    }
+    tm0_update_next_cycle();
 }
 
 static void adjust_time(){
@@ -485,8 +511,10 @@ static void reset_states(){
 	_nc1020_states.timer1_cycles = CYCLES_TIMER1;
 
 	_tm0_running = false;
-	_tm0_slice_deadline = 0;
-	_current_slice_cycles = 0;
+	_tm0_awaiting_reload = false;
+	_tm0_deadline_sub = 0;
+	_tm0_overflow_sub = 0;
+	_tm0_next_cycle = 0;
 	_pending_cold_boot_sync = true;
 	dsp_reset();
 	sound_reset(false);
@@ -512,7 +540,6 @@ static void load_states(){
     dsp_post_load_states((_ram_buff[0x20] & 0x80u) != 0 || !(_ram_buff[0x0493] & 0x80u));
     sound_reset((_ram_buff[0x18] & 0x80u) != 0);
     if ((_ram_buff[0x0492] & 0x80u) || (_ram_buff[0x0493] & 0x80u)) {
-        _current_slice_cycles = 0;
         nc1020_tm0_start(_ram_buff[0x02]);
     }
 }
@@ -614,21 +641,31 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
     uint64_t end_cycles = time_slice * CYCLES_MS;
 
     uint64_t cycles = 0;
-    _current_slice_cycles = 0;
 
     sound_begin_slice(_nc1020_states.cycles, speed_up);
 
 	while (cycles < end_cycles) {
 		uint64_t step_cycles = execute_6502(&_nc1020_states.cpu);
 		cycles += step_cycles;
-		_current_slice_cycles = cycles;
 		_nc1020_states.cycles += step_cycles;
 
-		if (_tm0_running && cycles >= _tm0_slice_deadline) {
-			_tm0_slice_deadline = cycles + tm0_cycles_for_counter(0);
-			_ram_buff[0x02] = 0;
-			_ram_buff[0x01] |= 0x10u;
-			_nc1020_states.should_irq = true;
+		if (_tm0_running && _nc1020_states.cycles >= _tm0_next_cycle) {
+			uint64_t now_sub = _nc1020_states.cycles * TM0_SUB_PER_CYCLE;
+			if (!(_ram_buff[0x01] & 0x10u) || now_sub > _tm0_overflow_sub + TM0_MAX_LAG_SUB) {
+				if (now_sub > _tm0_deadline_sub + TM0_MAX_LAG_SUB) {
+					_tm0_overflow_sub = now_sub;
+				} else {
+					_tm0_overflow_sub = _tm0_deadline_sub;
+				}
+				_tm0_awaiting_reload = true;
+				_tm0_deadline_sub = _tm0_overflow_sub + tm0_sub_for_counter(0);
+				tm0_update_next_cycle();
+				_ram_buff[0x02] = 0;
+				_ram_buff[0x01] |= 0x10u;
+				_nc1020_states.should_irq = true;
+			} else {
+				_nc1020_states.should_irq = true;
+			}
 		}
 		if (cycles >= _nc1020_states.timer0_cycles) {
 			_nc1020_states.timer0_cycles += CYCLES_TIMER0;
@@ -648,7 +685,6 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
 			_nc1020_states.should_irq = false;
 			uint64_t irq_cycles = do_irq(&_nc1020_states.cpu);
 			cycles += irq_cycles;
-			_current_slice_cycles = cycles;
 			_nc1020_states.cycles += irq_cycles;
 		}
 		if (cycles >= _nc1020_states.timer1_cycles) {
@@ -673,10 +709,6 @@ void run_time_slice(uint64_t time_slice, bool speed_up) {
 
 	sound_end_slice(_nc1020_states.cycles);
 
-	_current_slice_cycles = 0;
-	if (_tm0_running) {
-		_tm0_slice_deadline = (_tm0_slice_deadline > cycles) ? (_tm0_slice_deadline - cycles) : 0;
-	}
 	_nc1020_states.timer0_cycles -= end_cycles;
 	_nc1020_states.timer1_cycles -= end_cycles;
 }
