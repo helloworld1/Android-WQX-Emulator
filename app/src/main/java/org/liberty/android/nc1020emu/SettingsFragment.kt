@@ -14,6 +14,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings, rootKey)
 
+        val vibrationHelper = VibrationHelper(requireContext())
+        findPreference<ListPreference>(VibrationHelper.PREF_KEY)?.setOnPreferenceChangeListener { _, newValue ->
+            vibrationHelper.vibrate(newValue as? String)
+            true
+        }
+
         findPreference<ListPreference>("theme")?.setOnPreferenceChangeListener { _, newValue ->
             val themeValue = newValue as String
             val mode = when (themeValue) {

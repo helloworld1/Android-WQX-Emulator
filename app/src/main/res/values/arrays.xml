@@ -11,4 +11,18 @@
         <item>dark</item>
         <item>light</item>
     </string-array>
+
+    <string-array name="vibration_entries">
+        <item>@string/vibration_off</item>
+        <item>@string/vibration_low</item>
+        <item>@string/vibration_medium</item>
+        <item>@string/vibration_high</item>
+    </string-array>
+
+    <string-array name="vibration_values">
+        <item>off</item>
+        <item>low</item>
+        <item>medium</item>
+        <item>high</item>
+    </string-array>
 </resources>

@@ -16,6 +16,11 @@
     <string name="enable_beep_setting">模拟器声音</string>
     <string name="enable_beep_setting_summary_on">开启按键音、发音与报时声音</string>
     <string name="enable_beep_setting_summary_off">关闭按键音、发音与报时声音</string>
+    <string name="vibration_setting_title">震动</string>
+    <string name="vibration_off">关闭</string>
+    <string name="vibration_low">低</string>
+    <string name="vibration_medium">中</string>
+    <string name="vibration_high">高</string>
     <string name="about">关于</string>
     <string name="version">版本</string>
     <string name="github_repository">GitHub 仓库</string>

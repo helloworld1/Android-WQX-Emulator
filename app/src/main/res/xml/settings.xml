@@ -16,6 +16,14 @@
         app:defaultValue="true"/>
 
     <androidx.preference.ListPreference
+        app:key="vibration"
+        app:title="@string/vibration_setting_title"
+        app:entries="@array/vibration_entries"
+        app:entryValues="@array/vibration_values"
+        app:defaultValue="low"
+        app:useSimpleSummaryProvider="true"/>
+
+    <androidx.preference.ListPreference
         app:key="theme"
         app:title="@string/theme_setting_title"
         app:entries="@array/theme_entries"

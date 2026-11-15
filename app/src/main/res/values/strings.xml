@@ -23,6 +23,12 @@
     <string name="enable_beep_setting_summary_on">Enable emulator beep, pronunciation, and voice sound</string>
     <string name="enable_beep_setting_summary_off">Mute emulator beep, pronunciation, and voice sound</string>
 
+    <string name="vibration_setting_title">Vibration</string>
+    <string name="vibration_off">Off</string>
+    <string name="vibration_low">Low</string>
+    <string name="vibration_medium">Medium</string>
+    <string name="vibration_high">High</string>
+
     <string name="theme_setting_title">Theme</string>
     <string name="theme_follow_system">Follow system</string>
     <string name="theme_dark">Dark</string>

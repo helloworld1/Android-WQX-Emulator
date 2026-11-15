@@ -29,6 +29,7 @@ class KeypadLayout : LinearLayout {
             MotionEvent.ACTION_DOWN -> {
                 v.drawableHotspotChanged(event.x, event.y)
                 v.isPressed = true
+                onButtonPressedListener?.onButtonDown()
             }
             MotionEvent.ACTION_MOVE -> {
                 if (v.isPressed) {
@@ -164,6 +165,7 @@ class KeypadLayout : LinearLayout {
     }
 
     interface OnButtonPressedListener {
+        fun onButtonDown()
         fun onKeyReleased(keyCode: Int)
         fun onResetReleased()
     }

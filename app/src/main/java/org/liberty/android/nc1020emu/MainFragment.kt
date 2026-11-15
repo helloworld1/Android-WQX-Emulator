@@ -71,6 +71,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private var lastCycles: Long = 0
     private var frames: Long = 0
     private lateinit var preferences: SharedPreferences
+    private lateinit var vibrationHelper: VibrationHelper
     private lateinit var emulatorContainer: LinearLayout
     private lateinit var lcdContainer: LinearLayout
     private lateinit var keypadLayout: KeypadLayout
@@ -258,12 +259,17 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             speedUp = savedInstanceState.getBoolean(KEY_SPEED_UP, false)
         }
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        vibrationHelper = VibrationHelper(requireContext())
         emulatorContainer = view.findViewById(R.id.emulator_container)
         lcdContainer = view.findViewById(R.id.lcd_container)
         keypadLayout = view.findViewById(R.id.keypad_layout)
         lcdSurface = view.findViewById(R.id.lcd_surface)
         infoText = view.findViewById(R.id.info_text)
         keypadLayout.setOnButtonTouchListener(object : OnButtonPressedListener {
+            override fun onButtonDown() {
+                vibrationHelper.vibrate(vibrationSetting)
+            }
+
             override fun onKeyReleased(keyCode: Int) {
                 enqueueKeyPress(keyCode)
             }
@@ -521,6 +527,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     private val beepEnabledSetting: Boolean
         get() = preferences.getBoolean(ENABLE_BEEP_KEY, true)
+
+    private val vibrationSetting: String
+        get() = preferences.getString(VibrationHelper.PREF_KEY, VibrationHelper.LEVEL_LOW)
+            ?: VibrationHelper.LEVEL_LOW
 
     private fun showResetDialog() {
         AlertDialog.Builder(requireContext())
