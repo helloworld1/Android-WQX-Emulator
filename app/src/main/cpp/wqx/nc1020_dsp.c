@@ -759,13 +759,20 @@ void dsp_reset(void) {
     dsp_reset_core();
 }
 
-void dsp_post_load_states(bool sleeping) {
+void dsp_post_load_states(bool sleeping, bool pcm_mode) {
     dsp_reset();
     _dsp_sleep = sleeping;
+    if (!sleeping && pcm_mode) {
+        _dsp_mode = PCM_MODE;
+    }
 }
 
 bool dsp_is_sleeping(void) {
     return _dsp_sleep;
+}
+
+bool dsp_is_pcm_mode(void) {
+    return !_dsp_sleep && _dsp_mode == PCM_MODE;
 }
 
 uint8_t dsp_read_stat(uint64_t current_cycle) {
@@ -814,6 +821,13 @@ void dsp_write_low(uint8_t value) {
 }
 
 void dsp_write_cmd_high(uint8_t value, uint64_t current_cycle) {
+    if (_dsp_mode == PCM_MODE) {
+        if (!_dsp_sleep && sound_is_dsp_busy(current_cycle)) {
+            _dsp_unfetched = true;
+        }
+        dsp_write_word(value, _dsp_data_low, current_cycle);
+        return;
+    }
     dsp_handle_cmd(value, _dsp_data_low);
     if (_dsp_trans) {
         _dsp_ret_data = _dsp_data_low;
@@ -822,7 +836,7 @@ void dsp_write_cmd_high(uint8_t value, uint64_t current_cycle) {
     if (!_dsp_sleep && sound_is_dsp_busy(current_cycle)) {
         _dsp_unfetched = true;
     }
-    if (value == 0xa0u || (value & 0xc0u) || _dsp_mode == PCM_MODE ||
+    if (value == 0xa0u || (value & 0xc0u) ||
         ((_dsp_mode == CELP_MODE || _dsp_mode == WORD_MODE) && value < 0x60u)) {
         dsp_write_word(value, _dsp_data_low, current_cycle);
     }

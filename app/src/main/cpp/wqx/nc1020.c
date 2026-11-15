@@ -63,11 +63,14 @@ static uint8_t *_fp_buff;
 
 static uint8_t *_keypad_matrix;
 
-// 5,120,000 Hz CPU clock vs 920,000 Hz hardware Timer 0 base clock (3.68 MHz / 4):
-// 1 CPU cycle = 23 sub-units, 1 tm0 tick = 128 sub-units (exact integer ratio, zero drift).
-#define TM0_SUB_PER_CYCLE 23u
-#define TM0_SUB_PER_TICK  128u
-#define TM0_MAX_LAG_SUB   (16u * 256u * TM0_SUB_PER_TICK)
+// 5,120,000 Hz CPU clock vs hardware Timer 0 base clock:
+// - MCU mode (DSP asleep): 920,000 Hz (3.68 MHz / 4 -> 128/23 cycles/tick; A4=1045 -> 440.19 Hz).
+// - DSP PCM mode (SPDS104A PLL awake): 1,544,000 Hz (~6.144 MHz / 4 -> 640/193 cycles/tick;
+//   counter 0x3F = 193 ticks -> exact 640 CPU cycles = 8,000 Hz ADPCM voice playback).
+#define TM0_SUB_PER_CYCLE    (23u * 193u)
+#define TM0_SUB_PER_TICK_MCU (128u * 193u)
+#define TM0_SUB_PER_TICK_DSP (640u * 23u)
+#define TM0_MAX_LAG_SUB      (16ull * 256ull * TM0_SUB_PER_TICK_MCU)
 
 static bool _tm0_running = false;
 static bool _tm0_awaiting_reload = false;
@@ -85,7 +88,8 @@ static uint64_t tm0_sub_for_counter(uint8_t counter) {
     uint8_t tmodesl = io0c >> 6u;
     uint8_t shift = (tmodesl == 1u) ? ((io0c >> 4u) & 3u) : ((io0c >> 3u) & 7u);
     uint64_t ticks = (uint64_t) (256u - counter) << shift;
-    return ticks * TM0_SUB_PER_TICK;
+    uint64_t sub_per_tick = dsp_is_pcm_mode() ? TM0_SUB_PER_TICK_DSP : TM0_SUB_PER_TICK_MCU;
+    return ticks * sub_per_tick;
 }
 
 static inline void tm0_update_next_cycle(void) {
@@ -654,7 +658,8 @@ static void load_states(){
     }
     switch_volume();
     _ram_buff[0x0462] |= 0x80u;
-    dsp_post_load_states((_ram_buff[0x20] & 0x80u) != 0 || !(_ram_buff[0x0493] & 0x80u));
+    bool pcm_active = (_ram_buff[0x0493] & 0x80u) != 0;
+    dsp_post_load_states(!pcm_active, pcm_active);
     sound_reset((_ram_buff[0x18] & 0x80u) != 0);
     if ((_ram_buff[0x0492] & 0x80u) || (_ram_buff[0x0493] & 0x80u)) {
         nc1020_tm0_start(_ram_buff[0x02]);

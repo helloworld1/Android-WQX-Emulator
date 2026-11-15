@@ -6,8 +6,9 @@
 
 void dsp_init(void);
 void dsp_reset(void);
-void dsp_post_load_states(bool sleeping);
+void dsp_post_load_states(bool sleeping, bool pcm_mode);
 bool dsp_is_sleeping(void);
+bool dsp_is_pcm_mode(void);
 
 uint8_t dsp_read_stat(uint64_t current_cycle);
 uint8_t dsp_read_ret_data(void);
