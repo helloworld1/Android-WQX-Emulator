@@ -27,7 +27,6 @@ import android.view.Choreographer
 import android.content.DialogInterface
 import android.content.res.Configuration
 import android.util.Log
-import kotlin.Throws
 import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AlertDialog
@@ -42,8 +41,6 @@ import android.view.SurfaceView
 import android.widget.TextView
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
-import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.util.ArrayDeque
 import java.util.Calendar
@@ -414,6 +411,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     showFactoryResetDialog()
                     return@setOnMenuItemClickListener true
                 }
+                R.id.action_nor_browser -> {
+                    Navigation.findNavController(toolbar).navigate(R.id.action_mainFragment_to_norBrowserFragment)
+                    return@setOnMenuItemClickListener true
+                }
                 R.id.action_settings -> {
                     Navigation.findNavController(toolbar).navigate(R.id.action_mainFragment_to_settingsFragment)
                     return@setOnMenuItemClickListener true
@@ -469,15 +470,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     override fun surfaceDestroyed(holder: SurfaceHolder) {}
     private fun initEmulation(forceReload: Boolean) {
         if (forceReload) {
-            initDataFolder()
-            val fileDir = requireContext().applicationContext.filesDir.absolutePath
-            val romPath = "$fileDir/$ROM_FILE_NAME"
-            val norPath = "$fileDir/$NOR_FILE_NAME"
-            val statePath = "$fileDir/$STATE_FILE_NAME"
-            initialize(romPath, norPath, statePath)
-            syncSystemTime()
-            load()
-            sessionActive = true
+            ensureSessionInitialized(requireContext(), force = true)
+        } else {
+            ensureSessionInitialized(requireContext(), force = false)
         }
         synchronized(lcdBufferEx) {
             copyLcdBufferEx(lcdBufferEx, lcdSegments)
@@ -598,33 +593,6 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                 .show()
     }
 
-    private fun initDataFolder() {
-        val filesDir = requireContext().applicationContext.filesDir
-        try {
-            copyFileFromAsset(ROM_FILE_NAME, filesDir)
-            copyFileFromAsset(NOR_FILE_NAME, filesDir)
-        } catch (e: IOException) {
-            throw RuntimeException(e)
-        }
-    }
-
-    @Throws(IOException::class)
-    private fun copyFileFromAsset(fileName: String, folder: File) {
-        val dest = File(folder.absoluteFile.toString() + "/" + fileName)
-        if (dest.exists()) {
-            return
-        }
-        resources.assets.open(fileName).use { `in` ->
-            FileOutputStream(dest).use { out ->
-                val buffer = ByteArray(8192)
-                var count: Int
-                while (`in`.read(buffer).also { count = it } != -1) {
-                    out.write(buffer, 0, count)
-                }
-            }
-        }
-    }
-
     private fun factoryReset() {
         clearQueuedKeys()
         val filesDir = requireContext().applicationContext.filesDir.absolutePath
@@ -700,7 +668,45 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         private const val ROM_FILE_NAME = "obj_lu.bin"
         private const val NOR_FILE_NAME = "nc1020.fls"
         private const val STATE_FILE_NAME = "nc1020.sts"
-        private const val SAVE_STATES_KEY = "save_states"
+        const val SAVE_STATES_KEY = "save_states"
         private const val ENABLE_BEEP_KEY = "enable_beep"
+
+        fun ensureSessionInitialized(context: android.content.Context, force: Boolean = false) {
+            if (sessionActive && !force) return
+            val appCtx = context.applicationContext
+            val filesDir = appCtx.filesDir
+            copyAssetIfMissing(appCtx, ROM_FILE_NAME, filesDir)
+            copyAssetIfMissing(appCtx, NOR_FILE_NAME, filesDir)
+            val dirPath = filesDir.absolutePath
+            initialize("$dirPath/$ROM_FILE_NAME", "$dirPath/$NOR_FILE_NAME", "$dirPath/$STATE_FILE_NAME")
+            val cal = Calendar.getInstance()
+            val tzOffsetSec = (cal.get(Calendar.ZONE_OFFSET) + cal.get(Calendar.DST_OFFSET)) / 1000
+            syncTime(
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH) + 1,
+                cal.get(Calendar.DAY_OF_MONTH),
+                cal.get(Calendar.DAY_OF_WEEK) - 1,
+                cal.get(Calendar.HOUR_OF_DAY),
+                cal.get(Calendar.MINUTE),
+                cal.get(Calendar.SECOND),
+                tzOffsetSec
+            )
+            load()
+            sessionActive = true
+        }
+
+        private fun copyAssetIfMissing(context: android.content.Context, fileName: String, folder: File) {
+            val dest = File(folder, fileName)
+            if (dest.exists()) return
+            context.assets.open(fileName).use { input ->
+                FileOutputStream(dest).use { output ->
+                    val buffer = ByteArray(8192)
+                    var count: Int
+                    while (input.read(buffer).also { count = it } != -1) {
+                        output.write(buffer, 0, count)
+                    }
+                }
+            }
+        }
     }
 }

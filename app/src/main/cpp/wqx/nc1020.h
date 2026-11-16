@@ -18,5 +18,10 @@ void nc1020_tm0_start(uint8_t counter);
 void nc1020_tm0_stop(void);
 void nc1020_tm0_set_counter(uint8_t counter);
 void sync_nc1020_time(int year, int month, int day, int wday, int hour, int minute, int second, int32_t tz_offset_sec);
+uint8_t* get_nor_buffer(void);
+uint8_t* get_ram_buffer(void);
+void flush_nor_and_states(bool include_states);
+bool export_nor_raw(uint8_t *out_fls, size_t len);
+bool import_nor_raw(const uint8_t *in_fls, size_t len, bool include_states);
 
 #endif /* NC1020_H_ */

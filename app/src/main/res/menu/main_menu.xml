@@ -14,6 +14,9 @@
         android:id="@+id/action_speed_up"
         android:title="@string/action_speed_up"/>
     <item
+        android:id="@+id/action_nor_browser"
+        android:title="@string/nor_file_browser"/>
+    <item
         android:id="@+id/action_factory_reset"
         android:title="@string/factory_reset"/>
     <item

@@ -12,7 +12,22 @@
         <action
             android:id="@+id/action_mainFragment_to_aboutFragment"
             app:destination="@id/aboutFragment" />
+        <action
+            android:id="@+id/action_mainFragment_to_norBrowserFragment"
+            app:destination="@id/norBrowserFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/norBrowserFragment"
+        android:name="org.liberty.android.nc1020emu.nor.NorBrowserFragment"
+        android:label="@string/nor_file_browser">
+        <action
+            android:id="@+id/action_norBrowserFragment_to_norFileViewerFragment"
+            app:destination="@id/norFileViewerFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/norFileViewerFragment"
+        android:name="org.liberty.android.nc1020emu.nor.NorFileViewerFragment"
+        android:label="@string/nor_view" />
     <fragment
         android:id="@+id/settingsFragment"
         android:name="org.liberty.android.nc1020emu.SettingsFragment" >

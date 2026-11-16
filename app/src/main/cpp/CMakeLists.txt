@@ -11,7 +11,8 @@ add_library(
         wqx/nc1020.c
         wqx/nc1020_io.c
         wqx/nc1020_dsp.c
-        wqx/nc1020_sound.c)
+        wqx/nc1020_sound.c
+        wqx/nc1020_fs.c)
 
 target_link_libraries(
         nc1020

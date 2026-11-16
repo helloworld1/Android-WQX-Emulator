@@ -688,6 +688,75 @@ void save_nc1020(){
     save_states();
 }
 
+uint8_t* get_nor_buffer(void) {
+    return _nor_buff;
+}
+
+uint8_t* get_ram_buffer(void) {
+    return _ram_buff;
+}
+
+void flush_nor_and_states(bool include_states) {
+    if (_nor_file_path[0] != '\0') {
+        save_nor();
+    }
+    if (include_states && _state_file_path[0] != '\0') {
+        save_states();
+    }
+}
+
+static bool has_wqx_flash_magic(const uint8_t *linear_nor) {
+    for (size_t blk = 0; blk < 256u; blk++) {
+        if (memcmp(linear_nor + (blk * 0x1000u), "WQXFlashSX", 10u) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool export_nor_raw(uint8_t *out_fls, size_t len) {
+    if (out_fls == NULL || len != NOR_SIZE) {
+        return false;
+    }
+    process_binary(out_fls, _nor_buff, NOR_SIZE);
+    return true;
+}
+
+bool import_nor_raw(const uint8_t *in_fls, size_t len, bool include_states) {
+    if (in_fls == NULL || len != NOR_SIZE) {
+        return false;
+    }
+    uint8_t *temp = (uint8_t *) malloc(NOR_SIZE);
+    if (temp == NULL) {
+        return false;
+    }
+    process_binary(temp, (uint8_t *) in_fls, NOR_SIZE);
+    if (has_wqx_flash_magic(temp)) {
+        memcpy(_nor_buff, temp, NOR_SIZE);
+    } else if (has_wqx_flash_magic(in_fls)) {
+        memcpy(_nor_buff, in_fls, NOR_SIZE);
+    } else {
+        free(temp);
+        return false;
+    }
+    free(temp);
+
+    reset_states();
+    sync_time();
+    run_time_slice(30, false);
+    if (_nor_file_path[0] != '\0') {
+        save_nor();
+    }
+    if (_state_file_path[0] != '\0') {
+        if (include_states) {
+            save_states();
+        } else {
+            remove(_state_file_path);
+        }
+    }
+    return true;
+}
+
 void set_key(uint8_t key_id, bool down_or_up){
 	uint8_t row = (uint8_t) (key_id % 8u);
 	uint8_t col = (uint8_t) (key_id / 8u);
