@@ -198,7 +198,7 @@ class NorFileViewerFragment : Fragment() {
                 viewerTextContent.visibility = View.VISIBLE
                 viewerTextContent.typeface = Typeface.DEFAULT
                 viewerTextContent.textSize = 15f
-                viewerTextContent.text = WqxTextCodec.decodeGbk(fileBytes)
+                viewerTextContent.text = WqxTextCodec.decodeWqxDocument(fileBytes)
             }
 
             NorFileCategory.GVBASIC -> {

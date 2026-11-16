@@ -8,6 +8,7 @@ import java.nio.charset.CodingErrorAction
 
 object WqxTextCodec {
     const val MAX_NAME_GBK_BYTES = 16
+    const val WQX_BOOK_HEADER_SIZE = 24 // 15-byte main header + 9-byte section 0 descriptor
     val GBK_CHARSET: Charset = Charset.forName("GBK")
 
     private val FORBIDDEN_NAME_CHARS = setOf('/', '\\', ':', '*', '?', '"', '<', '>', '|')
@@ -17,6 +18,103 @@ object WqxTextCodec {
         val wasUtf8: Boolean,
         val unmappableCharCount: Int
     )
+
+    fun hasWqxBookHeader(bytes: ByteArray): Boolean {
+        if (bytes.size < WQX_BOOK_HEADER_SIZE) return false
+        if (bytes[0] != 0.toByte() || bytes[1] != 0.toByte() || bytes[2] != 0.toByte()) {
+            return false
+        }
+        val tocCount = readU16Le(bytes, 3)
+        if (tocCount == 0) {
+            val sectionCount = readU16Le(bytes, 5)
+            val expectedMinData = 15 + sectionCount * 9
+            if (sectionCount !in 1..512 || bytes.size < expectedMinData) return false
+            val globalStart = readU24Le(bytes, 7)
+            val globalEnd = readU24Le(bytes, 10)
+            if (globalStart < expectedMinData || globalEnd < globalStart || globalEnd > bytes.size) {
+                return false
+            }
+            val secType = bytes[15].toInt() and 0xFF
+            val secStart = readU24Le(bytes, 16)
+            val secEnd = readU24Le(bytes, 19)
+            return secType in 0..4 && secStart in expectedMinData..bytes.size && secEnd in secStart..bytes.size
+        }
+        // Heuristic for multi-chapter .ebk (TOC count > 0, followed by chapter list ending in 0xFF)
+        if (tocCount in 1..1024 && bytes[15] != 0xFF.toByte()) {
+            val scanLimit = minOf(bytes.size, 256)
+            for (i in 15 until scanLimit) {
+                if (bytes[i] == 0xFF.toByte()) return true
+            }
+        }
+        return false
+    }
+
+    fun extractReadableTextBytes(bytes: ByteArray): ByteArray {
+        if (!hasWqxBookHeader(bytes)) return bytes
+        val tocCount = readU16Le(bytes, 3)
+        if (tocCount != 0) return bytes
+        val sectionCount = readU16Le(bytes, 5)
+        val out = ByteArrayOutputStream(bytes.size)
+        for (s in 0 until sectionCount) {
+            val descOff = 15 + s * 9
+            if (descOff + 9 > bytes.size) break
+            val secType = bytes[descOff].toInt() and 0xFF
+            val secStart = readU24Le(bytes, descOff + 1)
+            val secEnd = readU24Le(bytes, descOff + 4)
+            if (secType == 0 && secStart >= 15 + sectionCount * 9 && secEnd >= secStart && secEnd <= bytes.size) {
+                if (out.size() > 0) {
+                    out.write('\r'.code)
+                    out.write('\n'.code)
+                }
+                out.write(bytes, secStart, secEnd - secStart)
+            }
+        }
+        return if (out.size() > 0) out.toByteArray() else bytes
+    }
+
+    fun decodeWqxDocument(bytes: ByteArray): String {
+        val body = extractReadableTextBytes(bytes)
+        return decodeGbk(body)
+    }
+
+    fun wrapAsWqxTxt(bodyBytes: ByteArray): ByteArray {
+        val start = WQX_BOOK_HEADER_SIZE
+        val end = WQX_BOOK_HEADER_SIZE + bodyBytes.size
+        val out = ByteArray(end)
+        // [0..2] base offset = 0
+        // [3..4] toc_count = 0 (single document)
+        // [5..6] section_count = 1
+        out[5] = 0x01
+        out[6] = 0x00
+        // [7..9] global start offset = 24
+        writeU24Le(out, 7, start)
+        // [10..12] global end offset = 24 + len
+        writeU24Le(out, 10, end)
+        // [13..14] reserved = 0
+        // [15] section 0 type = 0 (plain text viewer)
+        out[15] = 0x00
+        // [16..18] section 0 start offset = 24
+        writeU24Le(out, 16, start)
+        // [19..21] section 0 end offset = 24 + len
+        writeU24Le(out, 19, end)
+        // [22..23] section 0 reserved = 0
+        System.arraycopy(bodyBytes, 0, out, WQX_BOOK_HEADER_SIZE, bodyBytes.size)
+        return out
+    }
+
+    private fun readU16Le(bytes: ByteArray, off: Int): Int =
+        (bytes[off].toInt() and 0xFF) or ((bytes[off + 1].toInt() and 0xFF) shl 8)
+
+    private fun readU24Le(bytes: ByteArray, off: Int): Int =
+        (bytes[off].toInt() and 0xFF) or
+            ((bytes[off + 1].toInt() and 0xFF) shl 8) or
+            ((bytes[off + 2].toInt() and 0xFF) shl 16)
+
+    private fun writeU24Le(bytes: ByteArray, off: Int, value: Int) {
+        bytes[off] = (value and 0xFF).toByte()
+        bytes[off + 1] = ((value ushr 8) and 0xFF).toByte()
+        bytes[off + 2] = ((value ushr 16) and 0xFF).toByte()
+    }
 
     fun decodeGbk(bytes: ByteArray, offset: Int = 0, length: Int = bytes.size - offset): String {
         if (length <= 0) return ""
@@ -57,26 +155,57 @@ object WqxTextCodec {
     }
 
     /**
-     * Converts UTF-8 text (or normalizes line breaks) into WQX-ready GBK/GB2312 bytes.
-     * If input is already non-UTF-8 GBK/GB2312, returns the raw bytes untouched when convertUtf8 is true.
+     * Converts UTF-8 text to GBK/GB2312 (preserving already-GBK bytes) and wraps plain text
+     * in the 24-byte WQX single-section header required by NC1020's built-in "文书浏览" viewer.
      */
-    fun prepareTextForUpload(rawBytes: ByteArray, convertUtf8ToGbk: Boolean): TextUploadPrepResult {
-        if (!convertUtf8ToGbk || rawBytes.isEmpty()) {
+    fun prepareTextForUpload(rawBytes: ByteArray, formatForWqxReader: Boolean): TextUploadPrepResult {
+        if (!formatForWqxReader) {
             return TextUploadPrepResult(rawBytes, wasUtf8 = false, unmappableCharCount = 0)
         }
-        val utf8Detected = hasUtf8Bom(rawBytes) || isValidUtf8(rawBytes)
-        if (!utf8Detected) {
+        if (hasWqxBookHeader(rawBytes)) {
             return TextUploadPrepResult(rawBytes, wasUtf8 = false, unmappableCharCount = 0)
         }
-        val start = if (hasUtf8Bom(rawBytes)) 3 else 0
-        val rawText = String(rawBytes, start, rawBytes.size - start, Charsets.UTF_8)
-        val normalized = normalizeTypographyAndNewlines(rawText)
-        val (encoded, unmappable) = encodeStringToGbkWithCount(normalized)
+        val utf8WithHighBits = hasUtf8Bom(rawBytes) || (hasHighBitBytes(rawBytes) && isValidUtf8(rawBytes))
+        val bodyGbkBytes: ByteArray
+        val unmappable: Int
+        if (utf8WithHighBits) {
+            val start = if (hasUtf8Bom(rawBytes)) 3 else 0
+            val rawText = String(rawBytes, start, rawBytes.size - start, Charsets.UTF_8)
+            val normalized = normalizeTypographyAndNewlines(rawText)
+            val (encoded, badCount) = encodeStringToGbkWithCount(normalized)
+            bodyGbkBytes = encoded
+            unmappable = badCount
+        } else {
+            bodyGbkBytes = normalizeCrlfBytes(rawBytes)
+            unmappable = 0
+        }
         return TextUploadPrepResult(
-            gbkBytes = encoded,
-            wasUtf8 = hasUtf8Bom(rawBytes) || hasHighBitBytes(rawBytes),
+            gbkBytes = wrapAsWqxTxt(bodyGbkBytes),
+            wasUtf8 = utf8WithHighBits,
             unmappableCharCount = unmappable
         )
+    }
+
+    private fun normalizeCrlfBytes(rawBytes: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream(rawBytes.size + 16)
+        var i = 0
+        while (i < rawBytes.size) {
+            val b = rawBytes[i].toInt() and 0xFF
+            if (b == 0x0D) {
+                out.write(0x0D)
+                out.write(0x0A)
+                if (i + 1 < rawBytes.size && (rawBytes[i + 1].toInt() and 0xFF) == 0x0A) {
+                    i++
+                }
+            } else if (b == 0x0A) {
+                out.write(0x0D)
+                out.write(0x0A)
+            } else {
+                out.write(b)
+            }
+            i++
+        }
+        return out.toByteArray()
     }
 
     private fun normalizeTypographyAndNewlines(text: String): String {

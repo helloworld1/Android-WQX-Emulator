@@ -29,7 +29,7 @@ object NorExportHelper {
                     .setTitle(R.string.nor_export_format_title)
                     .setItems(options) { _, which ->
                         if (which == 0) {
-                            val utf8Text = WqxTextCodec.decodeGbk(rawBytes)
+                            val utf8Text = WqxTextCodec.decodeWqxDocument(rawBytes)
                             val outName = if (entry.extensionLower == "txt") {
                                 entry.name
                             } else {

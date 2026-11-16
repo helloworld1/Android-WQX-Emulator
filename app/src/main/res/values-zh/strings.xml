@@ -60,7 +60,7 @@
     <string name="nor_target_folder">目标目录</string>
     <string name="nor_folder_official_suffix">%1$s（文曲星默认目录）</string>
     <string name="nor_folder_current_suffix">%1$s（当前目录）</string>
-    <string name="nor_opt_convert_utf8">将 UTF-8 文本自动转换为 GBK/GB2312</string>
+    <string name="nor_opt_convert_utf8">转换为文曲星“文书浏览”格式并转码 GBK</string>
     <string name="nor_opt_tokenize_bas">将纯文本 BASIC 编译为 GVBASIC 格式</string>
     <string name="nor_opt_strip_bin_header">去除 16 字节 PC 传输文件头</string>
     <string name="nor_opt_ski_dither">图像抖动处理 (Floyd-Steinberg)</string>

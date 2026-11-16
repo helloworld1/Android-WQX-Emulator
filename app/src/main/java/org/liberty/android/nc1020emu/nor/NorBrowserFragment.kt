@@ -625,11 +625,11 @@ class NorBrowserFragment : Fragment() {
             }
 
             effectiveCategory == NorFileCategory.TEXT_DOC -> {
-                val utf8 = WqxTextCodec.hasUtf8Bom(rawBytes) ||
-                    (WqxTextCodec.hasHighBitBytes(rawBytes) && WqxTextCodec.isValidUtf8(rawBytes))
-                optPrimary.visibility = View.VISIBLE
-                optPrimary.setText(R.string.nor_opt_convert_utf8)
-                optPrimary.isChecked = utf8
+                if (!WqxTextCodec.hasWqxBookHeader(rawBytes)) {
+                    optPrimary.visibility = View.VISIBLE
+                    optPrimary.setText(R.string.nor_opt_convert_utf8)
+                    optPrimary.isChecked = true
+                }
             }
 
             effectiveCategory == NorFileCategory.GVBASIC -> {
@@ -696,7 +696,8 @@ class NorBrowserFragment : Fragment() {
                 val finalPayload: ByteArray = when {
                     isImageImport -> cachedSkiBytes ?: return@setOnClickListener
                     effectiveCategory == NorFileCategory.TEXT_DOC -> {
-                        WqxTextCodec.prepareTextForUpload(rawBytes, optPrimary.isChecked).gbkBytes
+                        val formatForWqx = optPrimary.visibility == View.VISIBLE && optPrimary.isChecked
+                        WqxTextCodec.prepareTextForUpload(rawBytes, formatForWqx).gbkBytes
                     }
                     effectiveCategory == NorFileCategory.GVBASIC -> {
                         when (val res = GvBasicCodec.prepareBasForUpload(rawBytes, optPrimary.isChecked)) {

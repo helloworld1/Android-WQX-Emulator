@@ -76,7 +76,7 @@
     <string name="nor_target_folder">Target WQX folder</string>
     <string name="nor_folder_official_suffix">%1$s (WQX target)</string>
     <string name="nor_folder_current_suffix">%1$s (Current)</string>
-    <string name="nor_opt_convert_utf8">Convert UTF-8 text to GBK/GB2312</string>
+    <string name="nor_opt_convert_utf8">Format for WQX reader &amp; convert UTF-8 → GBK</string>
     <string name="nor_opt_tokenize_bas">Tokenize plain-text BASIC for GVBASIC</string>
     <string name="nor_opt_strip_bin_header">Strip 16-byte PC transfer header</string>
     <string name="nor_opt_ski_dither">Dither image (Floyd-Steinberg)</string>
