@@ -5,9 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define NC1020_FS_NOR_SIZE        (1024u * 1024u)
+#define NC1020_FS_NOR_SIZE        (512u * 1024u)
 #define NC1020_FS_BLOCK_SIZE      4096u
-#define NC1020_FS_TOTAL_BLOCKS    256u
+#define NC1020_FS_TOTAL_BLOCKS    128u
 #define NC1020_FS_MAX_NAME_BYTES  16u
 #define NC1020_FS_MAX_DIR_ENTRIES 127u
 #define NC1020_FS_ROOT_INODE      0u

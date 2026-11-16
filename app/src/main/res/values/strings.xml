@@ -64,13 +64,13 @@
     <string name="nor_entry_file_meta">%1$s · %2$d blk · %3$s</string>
     <string name="nor_create_standard_dirs">Create standard WQX folders</string>
     <string name="nor_standard_dirs_created">Standard WQX folders ready</string>
-    <string name="nor_export_fls">Export full NOR (.fls)</string>
-    <string name="nor_import_fls">Import full NOR (.fls)</string>
+    <string name="nor_export_fls">Export full NOR (.nor)</string>
+    <string name="nor_import_fls">Import full NOR (.nor)</string>
     <string name="nor_import_fls_confirm_title">Import NOR Flash Image</string>
-    <string name="nor_import_fls_confirm_msg">Importing a .fls image will replace all current NOR files and reset WQX. Continue?</string>
+    <string name="nor_import_fls_confirm_msg">Importing a .nor image will replace all current NOR files and reset WQX. Continue?</string>
     <string name="nor_fls_exported">NOR image exported</string>
     <string name="nor_fls_imported">NOR image imported and WQX reset</string>
-    <string name="nor_fls_invalid">Invalid .fls image (expected 1 MB WQXFlashSX image)</string>
+    <string name="nor_fls_invalid">Invalid .nor image (expected 512 KB WQXFlashSX image)</string>
     <string name="nor_name_hint">WQX name (max 16 GBK bytes)</string>
     <string name="nor_byte_counter">%1$d / 16 bytes</string>
     <string name="nor_target_folder">Target WQX folder</string>

@@ -48,13 +48,13 @@
     <string name="nor_entry_file_meta">%1$s · %2$d 块 · %3$s</string>
     <string name="nor_create_standard_dirs">创建文曲星标准目录</string>
     <string name="nor_standard_dirs_created">标准目录已就绪</string>
-    <string name="nor_export_fls">导出完整 NOR 镜像 (.fls)</string>
-    <string name="nor_import_fls">导入完整 NOR 镜像 (.fls)</string>
+    <string name="nor_export_fls">导出完整 NOR 镜像 (.nor)</string>
+    <string name="nor_import_fls">导入完整 NOR 镜像 (.nor)</string>
     <string name="nor_import_fls_confirm_title">导入 NOR 闪存镜像</string>
-    <string name="nor_import_fls_confirm_msg">导入 .fls 镜像将替换当前所有 NOR 文件并复位文曲星，确定继续吗？</string>
+    <string name="nor_import_fls_confirm_msg">导入 .nor 镜像将替换当前所有 NOR 文件并复位文曲星，确定继续吗？</string>
     <string name="nor_fls_exported">NOR 镜像已导出</string>
     <string name="nor_fls_imported">NOR 镜像已导入并复位</string>
-    <string name="nor_fls_invalid">无效的 .fls 镜像（需要 1 MB WQXFlashSX 镜像）</string>
+    <string name="nor_fls_invalid">无效的 .nor 镜像（需要 512 KB WQXFlashSX 镜像）</string>
     <string name="nor_name_hint">文曲星文件名（最多 16 个 GBK 字节）</string>
     <string name="nor_byte_counter">%1$d / 16 字节</string>
     <string name="nor_target_folder">目标目录</string>

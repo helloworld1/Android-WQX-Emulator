@@ -15,7 +15,8 @@ static uint8_t *_rom_volume0[0x100];
 static uint8_t *_rom_volume1[0x100];
 static uint8_t *_rom_volume2[0x100];
 
-static uint8_t *_nor_banks[0x20];
+static uint8_t *_nor_banks[0x10];
+static uint8_t _empty_nor_bank[0x8000];
 static uint8_t *_bbs_pages[0x10];
 
 static uint8_t **_memmap;
@@ -33,7 +34,7 @@ static uint8_t *_keypad_matrix;
 
 static uint8_t* get_bank(uint8_t bank_idx){
     uint8_t volume_idx = _ram_io[0x0D];
-    if (bank_idx < 0x20) {
+    if (bank_idx < 0x10) {
         return _nor_banks[bank_idx];
     } else if (bank_idx >= 0x80) {
         if (volume_idx & 0x01u) {
@@ -44,7 +45,7 @@ static uint8_t* get_bank(uint8_t bank_idx){
             return _rom_volume0[bank_idx];
         }
     }
-    return NULL;
+    return _empty_nor_bank;
 }
 
 static void switch_bank(){
@@ -309,7 +310,8 @@ void init_nc1020_io(nc1020_states_t *states, uint8_t rom_buff[], uint8_t nor_buf
         _rom_volume1[i] = rom_buff + (0x8000 * (0x100 + i));
         _rom_volume2[i] = rom_buff + (0x8000 * (0x200 + i));
     }
-    for (uint64_t i=0; i<0x20; i++) {
+    memset(_empty_nor_bank, 0xFF, sizeof(_empty_nor_bank));
+    for (uint64_t i=0; i<0x10; i++) {
         _nor_banks[i] = nor_buff + (0x8000 * i);
     }
 }

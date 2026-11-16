@@ -666,7 +666,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         private const val KEY_GAP_CYCLES: Long = 35 * CYCLES_MS
         private const val MAX_PENDING_KEYS = 16
         private const val ROM_FILE_NAME = "obj_lu.bin"
-        private const val NOR_FILE_NAME = "nc1020.fls"
+        private const val NOR_FILE_NAME = "nc1020.nor"
+        private const val LEGACY_NOR_FILE_NAME = "nc1020.fls"
+        private const val NOR_IMAGE_BYTES = 512L * 1024L
         private const val STATE_FILE_NAME = "nc1020.sts"
         const val SAVE_STATES_KEY = "save_states"
         private const val ENABLE_BEEP_KEY = "enable_beep"
@@ -676,6 +678,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             val appCtx = context.applicationContext
             val filesDir = appCtx.filesDir
             copyAssetIfMissing(appCtx, ROM_FILE_NAME, filesDir)
+            migrateLegacyNorIfNeeded(filesDir)
             copyAssetIfMissing(appCtx, NOR_FILE_NAME, filesDir)
             val dirPath = filesDir.absolutePath
             initialize("$dirPath/$ROM_FILE_NAME", "$dirPath/$NOR_FILE_NAME", "$dirPath/$STATE_FILE_NAME")
@@ -693,6 +696,39 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             )
             load()
             sessionActive = true
+        }
+
+        private fun migrateLegacyNorIfNeeded(folder: File) {
+            val norDest = File(folder, NOR_FILE_NAME)
+            val legacyFls = File(folder, LEGACY_NOR_FILE_NAME)
+            if (norDest.exists() || !legacyFls.exists()) return
+            if (legacyFls.length() < NOR_IMAGE_BYTES) {
+                legacyFls.delete()
+                return
+            }
+            val tmpDest = File(folder, "$NOR_FILE_NAME.tmp")
+            try {
+                legacyFls.inputStream().use { input ->
+                    tmpDest.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        var remaining = NOR_IMAGE_BYTES.toInt()
+                        while (remaining > 0) {
+                            val toRead = minOf(buffer.size, remaining)
+                            val count = input.read(buffer, 0, toRead)
+                            if (count <= 0) break
+                            output.write(buffer, 0, count)
+                            remaining -= count
+                        }
+                    }
+                }
+                if (tmpDest.length() == NOR_IMAGE_BYTES && tmpDest.renameTo(norDest)) {
+                    legacyFls.delete()
+                } else {
+                    tmpDest.delete()
+                }
+            } catch (_: Exception) {
+                tmpDest.delete()
+            }
         }
 
         private fun copyAssetIfMissing(context: android.content.Context, fileName: String, folder: File) {

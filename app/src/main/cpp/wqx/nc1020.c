@@ -27,7 +27,7 @@ const uint64_t CYCLES_TIMER1_SPEED_UP = CYCLES_SECOND / TIMER1_FREQ / 20;
 const uint64_t CYCLES_MS = CYCLES_SECOND / 1000;
 
 static const uint64_t ROM_SIZE = 0x8000 * 0x300;
-static const uint64_t NOR_SIZE = 0x8000 * 0x20;
+static const uint64_t NOR_SIZE = 0x8000 * 0x10;
 
 static const uint16_t IO_LIMIT = 0x40;
 
@@ -45,7 +45,7 @@ static char _state_file_path[MAX_FILE_NAME_LENGTH];
 static uint8_t _rom_buff[ROM_SIZE];
 static uint8_t _nor_buff[NOR_SIZE];
 
-static uint8_t *_nor_banks[0x20];
+static uint8_t *_nor_banks[0x10];
 
 static uint8_t *_memmap[8];
 static nc1020_states_t _nc1020_states;
@@ -382,7 +382,7 @@ static void store(uint16_t addr, uint8_t value) {
     // there must select a nor_bank.
 
     uint8_t bank_idx = read_io(0x00);
-    if (bank_idx >= 0x20) {
+    if (bank_idx >= 0x10) {
         return;
     }
 
@@ -451,7 +451,7 @@ static void store(uint16_t addr, uint8_t value) {
         }
     } else if (_nc1020_states.fp_step == 5) {
         if (addr == 0x5555 && value == 0x10) {
-        	for (uint64_t i=0; i<0x20; i++) {
+        	for (uint64_t i=0; i<0x10; i++) {
                 memset(_nor_banks[i], 0xFF, 0x8000);
             }
             if (_nc1020_states.fp_type == 5) {
@@ -605,7 +605,7 @@ void initialize(const char *rom_file_path, const char *nor_file_path, const char
     _fp_buff = _nc1020_states.fp_buff;
     _keypad_matrix = _nc1020_states.keypad_matrix;
 
-	for (uint64_t i=0; i<0x20; i++) {
+	for (uint64_t i=0; i<0x10; i++) {
 		_nor_banks[i] = _nor_buff + (0x8000 * i);
 	}
 
@@ -706,7 +706,7 @@ void flush_nor_and_states(bool include_states) {
 }
 
 static bool has_wqx_flash_magic(const uint8_t *linear_nor) {
-    for (size_t blk = 0; blk < 256u; blk++) {
+    for (size_t blk = 0; blk < 128u; blk++) {
         if (memcmp(linear_nor + (blk * 0x1000u), "WQXFlashSX", 10u) == 0) {
             return true;
         }

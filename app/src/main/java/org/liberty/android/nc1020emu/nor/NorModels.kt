@@ -39,7 +39,7 @@ data class NorStorageInfo(
 
     companion object {
         const val BLOCK_SIZE = 4096
-        const val NOR_IMAGE_SIZE = 1024 * 1024
+        const val NOR_IMAGE_SIZE = 512 * 1024
     }
 }
 

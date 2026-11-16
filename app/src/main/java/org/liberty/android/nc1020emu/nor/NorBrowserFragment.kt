@@ -183,7 +183,7 @@ class NorBrowserFragment : Fragment() {
                     if (fls != null) {
                         pendingExportBytes = fls
                         pendingFlsExport = true
-                        exportDocumentLauncher.launch("nc1020_nor_backup.fls")
+                        exportDocumentLauncher.launch("nc1020_nor_backup.nor")
                     } else {
                         showError(NorRepository.FS_ERR_CORRUPT)
                     }
