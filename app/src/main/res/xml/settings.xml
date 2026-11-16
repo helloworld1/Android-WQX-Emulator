@@ -15,6 +15,20 @@
         app:summaryOff="@string/enable_beep_setting_summary_off"
         app:defaultValue="true"/>
 
+    <androidx.preference.SwitchPreferenceCompat
+        app:key="show_lcd_status"
+        app:title="@string/show_lcd_status_setting"
+        app:summaryOn="@string/show_lcd_status_setting_summary_on"
+        app:summaryOff="@string/show_lcd_status_setting_summary_off"
+        app:defaultValue="true"/>
+
+    <androidx.preference.SwitchPreferenceCompat
+        app:key="show_pixel_grid"
+        app:title="@string/show_pixel_grid_setting"
+        app:summaryOn="@string/show_pixel_grid_setting_summary_on"
+        app:summaryOff="@string/show_pixel_grid_setting_summary_off"
+        app:defaultValue="true"/>
+
     <androidx.preference.ListPreference
         app:key="vibration"
         app:title="@string/vibration_setting_title"

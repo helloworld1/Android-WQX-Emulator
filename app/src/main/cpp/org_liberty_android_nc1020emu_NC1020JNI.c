@@ -44,40 +44,62 @@ JNIEXPORT void JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_runTimeSlice
 }
 
 /**
- * Copy the LCD buffer and convert to Android bitmap format
+ * Copy the 159x80 dot-matrix LCD pixels (columns 1..159) and 80 status segments (column 0).
  *
  * @param env JNIEnv
  * @param type java class
- * @param buffer The buffer is size of byte[1600 * 8]
- * @return True if buffer is copied. False if buffer is not copied
+ * @param pixelBuffer ByteArray of size >= 159 * 80 for ALPHA_8 dot-matrix pixels
+ * @param segmentBuffer ByteArray of size >= 80 for left/right status segment states (0 or 1)
+ * @return True if copied, false otherwise
  */
 JNIEXPORT jboolean JNICALL Java_org_liberty_android_nc1020emu_NC1020JNI_copyLcdBufferEx
-        (JNIEnv *env, jclass type, jbyteArray buffer) {
-    uint8_t* lcd_buffer = get_lcd_buffer();
+        (JNIEnv *env, jclass type, jbyteArray pixelBuffer, jbyteArray segmentBuffer) {
+    (void) type;
+    if (pixelBuffer == NULL || segmentBuffer == NULL) {
+        return JNI_FALSE;
+    }
+    if ((*env)->GetArrayLength(env, pixelBuffer) < 159 * 80 ||
+        (*env)->GetArrayLength(env, segmentBuffer) < 80) {
+        return JNI_FALSE;
+    }
 
-    if (lcd_buffer == NULL)
-        return false;
+    uint8_t *lcd_buffer = get_lcd_buffer();
+    if (lcd_buffer == NULL) {
+        return JNI_FALSE;
+    }
 
-    jbyte* buffer_ex = (*env)->GetByteArrayElements(env, buffer, NULL);
-    if (buffer_ex == NULL)
-        return false;
+    jbyte *pixels_out = (*env)->GetByteArrayElements(env, pixelBuffer, NULL);
+    if (pixels_out == NULL) {
+        return JNI_FALSE;
+    }
+    jbyte *segments_out = (*env)->GetByteArrayElements(env, segmentBuffer, NULL);
+    if (segments_out == NULL) {
+        (*env)->ReleaseByteArrayElements(env, pixelBuffer, pixels_out, JNI_ABORT);
+        return JNI_FALSE;
+    }
 
     for (int y = 0; y < 80; y++) {
-        for (int j = 0; j < 20; j++) {
-            uint8_t p = lcd_buffer[20 * y + j];
+        const uint8_t *row = lcd_buffer + (20 * y);
+        jbyte *dst_row = pixels_out + (159 * y);
+
+        segments_out[y] = (row[0] & 0x80u) != 0 ? (jbyte) 1 : (jbyte) 0;
+
+        uint8_t first = row[0];
+        for (int k = 1; k < 8; k++) {
+            dst_row[k - 1] = (first & (1u << (7u - k))) != 0 ? (jbyte) 0xFF : (jbyte) 0x00;
+        }
+        for (int j = 1; j < 20; j++) {
+            uint8_t p = row[j];
+            int base = j * 8 - 1;
             for (int k = 0; k < 8; k++) {
-                buffer_ex[y * 160 + j * 8 + k] = ((p & (1u << (7u - k))) != 0 ? 0xFFu : 0x00);
+                dst_row[base + k] = (p & (1u << (7u - k))) != 0 ? (jbyte) 0xFF : (jbyte) 0x00;
             }
         }
     }
 
-    for (int y = 0; y < 80; y++) {
-        buffer_ex[y * 160] = 0;
-    }
-
-
-    (*env)->ReleaseByteArrayElements(env, buffer, buffer_ex, 0);
-    return true;
+    (*env)->ReleaseByteArrayElements(env, segmentBuffer, segments_out, 0);
+    (*env)->ReleaseByteArrayElements(env, pixelBuffer, pixels_out, 0);
+    return JNI_TRUE;
 }
 
 JNIEXPORT jlong JNICALL

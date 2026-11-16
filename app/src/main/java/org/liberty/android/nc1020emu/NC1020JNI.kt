@@ -7,7 +7,7 @@ object NC1020JNI {
     @JvmStatic external fun save()
     @JvmStatic external fun setKey(keyId: Int, downOrUp: Boolean)
     @JvmStatic external fun runTimeSlice(timeSlice: Int, speedUp: Boolean)
-    @JvmStatic external fun copyLcdBufferEx(buffer: ByteArray?): Boolean
+    @JvmStatic external fun copyLcdBufferEx(pixelBuffer: ByteArray?, segmentBuffer: ByteArray?): Boolean
     @JvmStatic external fun readAudioSamples(buffer: ShortArray?): Int
     @JvmStatic external fun startAudio()
     @JvmStatic external fun stopAudio()

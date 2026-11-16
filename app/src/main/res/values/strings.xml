@@ -23,6 +23,14 @@
     <string name="enable_beep_setting_summary_on">Enable emulator beep, pronunciation, and voice sound</string>
     <string name="enable_beep_setting_summary_off">Mute emulator beep, pronunciation, and voice sound</string>
 
+    <string name="show_lcd_status_setting">LCD status indicators</string>
+    <string name="show_lcd_status_setting_summary_on">Show left and right LCD status icons</string>
+    <string name="show_lcd_status_setting_summary_off">Hide left and right LCD status icons</string>
+
+    <string name="show_pixel_grid_setting">LCD pixel grid</string>
+    <string name="show_pixel_grid_setting_summary_on">Show subtle pixel grid on LCD</string>
+    <string name="show_pixel_grid_setting_summary_off">Do not show pixel grid on LCD</string>
+
     <string name="vibration_setting_title">Vibration</string>
     <string name="vibration_off">Off</string>
     <string name="vibration_low">Low</string>

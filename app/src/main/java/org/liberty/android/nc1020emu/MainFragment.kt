@@ -26,7 +26,6 @@ import androidx.navigation.Navigation
 import android.view.Choreographer
 import android.content.DialogInterface
 import android.content.res.Configuration
-import android.graphics.Matrix
 import android.util.Log
 import kotlin.Throws
 import android.view.MenuItem
@@ -53,25 +52,30 @@ import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 
 class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
-    private val lcdBufferEx = ByteArray(1600 * 8)
+    private val lcdBufferEx = ByteArray(LcdStatusRenderer.MATRIX_COLS * LcdStatusRenderer.MATRIX_ROWS)
+    private val lcdSegments = ByteArray(LcdStatusRenderer.SEGMENT_COUNT)
+    private val renderSegments = ByteArray(LcdStatusRenderer.SEGMENT_COUNT)
     private val wakeMonitor = Object()
     private val pendingKeyPresses = ArrayDeque<Int>()
     private var clearActiveKeyRequested = false
     private var resetRequested = false
-    private var lcdBitmap= Bitmap.createBitmap(160, 80, Bitmap.Config.ALPHA_8)
-    private var lcdMatrix = Matrix()
+    private val lcdBitmap = Bitmap.createBitmap(
+        LcdStatusRenderer.MATRIX_COLS,
+        LcdStatusRenderer.MATRIX_ROWS,
+        Bitmap.Config.ALPHA_8
+    )
     @Volatile
     private var speedUp = false
     private val executorService = Executors.newSingleThreadExecutor()
     private var runningFuture: Future<*>? = null
     @Volatile
     private var isRunning = true
-    private var displayScale = 1f
     private var lastFrameTime: Long = 0
     private var lastCycles: Long = 0
     private var frames: Long = 0
     private lateinit var preferences: SharedPreferences
     private lateinit var vibrationHelper: VibrationHelper
+    private var lcdStatusRenderer: LcdStatusRenderer? = null
     private lateinit var emulatorContainer: LinearLayout
     private lateinit var lcdContainer: LinearLayout
     private lateinit var keypadLayout: KeypadLayout
@@ -131,7 +135,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     reset()
                     runTimeSlice(1, false)
                     synchronized(lcdBufferEx) {
-                        copyLcdBufferEx(lcdBufferEx)
+                        copyLcdBufferEx(lcdBufferEx, lcdSegments)
                     }
                     lastLcdCopyNs = System.nanoTime()
                     lastSliceNs = lastLcdCopyNs
@@ -181,7 +185,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     debtNs = 0L
                     if (nowNs - lastLcdCopyNs >= LCD_INTERVAL_NS) {
                         synchronized(lcdBufferEx) {
-                            copyLcdBufferEx(lcdBufferEx)
+                            copyLcdBufferEx(lcdBufferEx, lcdSegments)
                         }
                         lastLcdCopyNs = nowNs
                     }
@@ -214,7 +218,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     val afterSliceNs = System.nanoTime()
                     if (afterSliceNs - lastLcdCopyNs >= LCD_INTERVAL_NS) {
                         synchronized(lcdBufferEx) {
-                            copyLcdBufferEx(lcdBufferEx)
+                            copyLcdBufferEx(lcdBufferEx, lcdSegments)
                         }
                         lastLcdCopyNs = afterSliceNs
                     }
@@ -260,6 +264,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         }
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         vibrationHelper = VibrationHelper(requireContext())
+        lcdStatusRenderer = LcdStatusRenderer(
+            ContextCompat.getColor(requireContext(), R.color.lcd_background)
+        )
         emulatorContainer = view.findViewById(R.id.emulator_container)
         lcdContainer = view.findViewById(R.id.lcd_container)
         keypadLayout = view.findViewById(R.id.keypad_layout)
@@ -348,11 +355,15 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         } else {
             (rootView.height - keypadLayout.height - infoText.height).coerceAtLeast(1)
         }
-        val targetWidth = minOf(containerWidth, maxLcdHeight * 2)
-        val targetHeight = targetWidth / 2
+        val logicalWidth = if (showLcdStatusSetting) {
+            LcdStatusRenderer.TOTAL_UNITS_WITH_STATUS.toInt()
+        } else {
+            LcdStatusRenderer.MATRIX_COLS
+        }
+        val logicalHeight = LcdStatusRenderer.MATRIX_ROWS
+        val targetWidth = minOf(containerWidth, maxLcdHeight * logicalWidth / logicalHeight)
+        val targetHeight = targetWidth * logicalHeight / logicalWidth
         if (targetWidth <= 0 || targetHeight <= 0) return
-        displayScale = targetWidth.toFloat() / 160f
-        lcdMatrix.setScale(displayScale, displayScale)
         val currentParams = lcdSurface.layoutParams as LinearLayout.LayoutParams
         if (currentParams.width != targetWidth || currentParams.height != targetHeight) {
             currentParams.width = targetWidth
@@ -390,6 +401,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     clearQueuedKeys()
                     syncSystemTime()
                     load()
+                    synchronized(lcdBufferEx) {
+                        copyLcdBufferEx(lcdBufferEx, lcdSegments)
+                    }
                     return@setOnMenuItemClickListener true
                 }
                 R.id.action_save -> {
@@ -415,6 +429,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     override fun onResume() {
         super.onResume()
+        updateLcdLayoutSize()
         startEmulation()
     }
 
@@ -424,6 +439,12 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         if (activity?.isFinishing == true) {
             sessionActive = false
         }
+    }
+
+    override fun onDestroyView() {
+        lcdStatusRenderer?.release()
+        lcdStatusRenderer = null
+        super.onDestroyView()
     }
 
     override fun onDestroy() {
@@ -437,14 +458,11 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int,
                                 height: Int) {
         if (width > 0 && height > 0) {
-            displayScale = width.toFloat() / 160f
-            lcdMatrix.setScale(displayScale, displayScale)
             updateLcd()
         }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        lcdMatrix.setScale(displayScale, displayScale)
         updateLcd()
     }
 
@@ -462,7 +480,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             sessionActive = true
         }
         synchronized(lcdBufferEx) {
-            copyLcdBufferEx(lcdBufferEx)
+            copyLcdBufferEx(lcdBufferEx, lcdSegments)
         }
     }
 
@@ -532,6 +550,12 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         get() = preferences.getString(VibrationHelper.PREF_KEY, VibrationHelper.LEVEL_LOW)
             ?: VibrationHelper.LEVEL_LOW
 
+    private val showLcdStatusSetting: Boolean
+        get() = preferences.getBoolean(LcdStatusRenderer.PREF_SHOW_LCD_STATUS, true)
+
+    private val showPixelGridSetting: Boolean
+        get() = preferences.getBoolean(LcdStatusRenderer.PREF_SHOW_PIXEL_GRID, true)
+
     private fun showResetDialog() {
         AlertDialog.Builder(requireContext())
                 .setTitle(R.string.reset_wqx)
@@ -553,7 +577,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             reset()
             runTimeSlice(1, false)
             synchronized(lcdBufferEx) {
-                copyLcdBufferEx(lcdBufferEx)
+                copyLcdBufferEx(lcdBufferEx, lcdSegments)
             }
             updateLcd()
             return
@@ -617,11 +641,25 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     }
 
     private fun updateLcd() {
+        val renderer = lcdStatusRenderer ?: return
         val lcdCanvas = lcdSurface.holder.lockCanvas() ?: return
-        synchronized(lcdBufferEx) { lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx)) }
-        lcdCanvas.drawColor(ContextCompat.getColor(requireContext(), R.color.lcd_background))
-        lcdCanvas.drawBitmap(lcdBitmap, lcdMatrix, null)
-        lcdSurface.holder.unlockCanvasAndPost(lcdCanvas)
+        try {
+            synchronized(lcdBufferEx) {
+                lcdBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(lcdBufferEx))
+                System.arraycopy(lcdSegments, 0, renderSegments, 0, lcdSegments.size)
+            }
+            renderer.draw(
+                canvas = lcdCanvas,
+                surfaceWidth = lcdCanvas.width,
+                surfaceHeight = lcdCanvas.height,
+                lcdBitmap = lcdBitmap,
+                segments = renderSegments,
+                showStatus = showLcdStatusSetting,
+                showPixelGrid = showPixelGridSetting
+            )
+        } finally {
+            lcdSurface.holder.unlockCanvasAndPost(lcdCanvas)
+        }
     }
 
     private fun displayPerf() {

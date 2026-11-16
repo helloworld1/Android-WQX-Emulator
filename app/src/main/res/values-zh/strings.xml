@@ -16,6 +16,12 @@
     <string name="enable_beep_setting">模拟器声音</string>
     <string name="enable_beep_setting_summary_on">开启按键音、发音与报时声音</string>
     <string name="enable_beep_setting_summary_off">关闭按键音、发音与报时声音</string>
+    <string name="show_lcd_status_setting">屏幕状态栏</string>
+    <string name="show_lcd_status_setting_summary_on">显示屏幕左右两侧状态图标</string>
+    <string name="show_lcd_status_setting_summary_off">隐藏屏幕左右两侧状态图标</string>
+    <string name="show_pixel_grid_setting">像素网格</string>
+    <string name="show_pixel_grid_setting_summary_on">在屏幕上显示细微像素网格</string>
+    <string name="show_pixel_grid_setting_summary_off">不显示像素网格</string>
     <string name="vibration_setting_title">震动</string>
     <string name="vibration_off">关闭</string>
     <string name="vibration_low">低</string>
