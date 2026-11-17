@@ -54,6 +54,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val renderSegments = ByteArray(LcdStatusRenderer.SEGMENT_COUNT)
     private val wakeMonitor = Object()
     private val pendingKeyPresses = ArrayDeque<Int>()
+    private val desiredHeldKeys = BooleanArray(KEY_COUNT)
+    private val pendingHoldStarts = BooleanArray(KEY_COUNT)
     private var clearActiveKeyRequested = false
     private var resetRequested = false
     private val lcdBitmap = Bitmap.createBitmap(
@@ -95,6 +97,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         var keyDownAtCycles = 0L
         var releaseAtCycles = 0L
         var nextKeyReadyAtCycles = 0L
+        val emulationHeldKeys = BooleanArray(KEY_COUNT)
+        val heldDownAtCycles = LongArray(KEY_COUNT)
+        val snapshotDesiredHeld = BooleanArray(KEY_COUNT)
+        val snapshotPendingHoldStarts = BooleanArray(KEY_COUNT)
         try {
             while (isRunning) {
                 val nowNs = System.nanoTime()
@@ -112,11 +118,15 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                         resetRequested = false
                         clearActiveKeyRequested = false
                         pendingKeyPresses.clear()
+                        desiredHeldKeys.fill(false)
+                        pendingHoldStarts.fill(false)
                         shouldReset = true
                     } else if (clearActiveKeyRequested) {
                         clearActiveKeyRequested = false
                         shouldClearKey = true
                     }
+                    System.arraycopy(desiredHeldKeys, 0, snapshotDesiredHeld, 0, KEY_COUNT)
+                    System.arraycopy(pendingHoldStarts, 0, snapshotPendingHoldStarts, 0, KEY_COUNT)
                     hasQueuedKey = pendingKeyPresses.isNotEmpty()
                 }
 
@@ -125,6 +135,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     keyDownAtCycles = 0L
                     releaseAtCycles = 0L
                     nextKeyReadyAtCycles = 0L
+                    emulationHeldKeys.fill(false)
+                    heldDownAtCycles.fill(0L)
                     pendingNs = 0L
                     debtNs = 0L
                     noRepayUntilNs = 0L
@@ -144,27 +156,80 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                         setKey(activeKeyCode, false)
                         activeKeyCode = -1
                     }
+                    for (k in 0 until KEY_COUNT) {
+                        if (emulationHeldKeys[k]) {
+                            setKey(k, false)
+                            emulationHeldKeys[k] = false
+                            heldDownAtCycles[k] = 0L
+                        }
+                    }
                     nextKeyReadyAtCycles = 0L
                 }
 
                 val currentCycles = cycles
                 if (activeKeyCode != -1) {
                     val heldCycles = currentCycles - keyDownAtCycles
+                    val holdWaitingForSameKey =
+                        snapshotPendingHoldStarts[activeKeyCode] || snapshotDesiredHeld[activeKeyCode]
                     if (currentCycles >= releaseAtCycles ||
-                        (hasQueuedKey && heldCycles >= MIN_KEY_HOLD_CYCLES)
+                        ((hasQueuedKey || holdWaitingForSameKey) && heldCycles >= MIN_KEY_HOLD_CYCLES)
                     ) {
-                        setKey(activeKeyCode, false)
+                        if (!emulationHeldKeys[activeKeyCode]) {
+                            setKey(activeKeyCode, false)
+                        }
                         activeKeyCode = -1
-                        nextKeyReadyAtCycles = currentCycles + KEY_GAP_CYCLES
+                        nextKeyReadyAtCycles = maxOf(nextKeyReadyAtCycles, currentCycles + KEY_GAP_CYCLES)
                         justReleasedKey = true
+                    }
+                }
+
+                for (k in 0 until KEY_COUNT) {
+                    if (emulationHeldKeys[k] && !snapshotDesiredHeld[k]) {
+                        if (currentCycles - heldDownAtCycles[k] >= KEY_HOLD_CYCLES) {
+                            emulationHeldKeys[k] = false
+                            heldDownAtCycles[k] = 0L
+                            if (activeKeyCode != k) {
+                                setKey(k, false)
+                            }
+                            nextKeyReadyAtCycles = maxOf(nextKeyReadyAtCycles, currentCycles + KEY_GAP_CYCLES)
+                            justReleasedKey = true
+                        }
+                    }
+                }
+
+                for (k in 0 until KEY_COUNT) {
+                    if (!emulationHeldKeys[k] && (snapshotPendingHoldStarts[k] || snapshotDesiredHeld[k])) {
+                        if (activeKeyCode != k && currentCycles >= nextKeyReadyAtCycles) {
+                            var consumed = false
+                            synchronized(wakeMonitor) {
+                                if (pendingHoldStarts[k] || desiredHeldKeys[k]) {
+                                    pendingHoldStarts[k] = false
+                                    consumed = true
+                                }
+                            }
+                            if (consumed) {
+                                setKey(k, true)
+                                emulationHeldKeys[k] = true
+                                heldDownAtCycles[k] = currentCycles
+                                justPressedKey = true
+                            }
+                        }
+                    } else if (emulationHeldKeys[k] && snapshotPendingHoldStarts[k]) {
+                        synchronized(wakeMonitor) {
+                            pendingHoldStarts[k] = false
+                        }
                     }
                 }
 
                 if (activeKeyCode == -1 && currentCycles >= nextKeyReadyAtCycles) {
                     var nextKey = -1
                     synchronized(wakeMonitor) {
-                        if (pendingKeyPresses.isNotEmpty()) {
-                            nextKey = pendingKeyPresses.removeFirst()
+                        while (pendingKeyPresses.isNotEmpty()) {
+                            val candidate = pendingKeyPresses.removeFirst()
+                            if (candidate in 0 until KEY_COUNT && !emulationHeldKeys[candidate]) {
+                                nextKey = candidate
+                                break
+                            }
                         }
                     }
                     if (nextKey != -1) {
@@ -224,9 +289,24 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                     if (waitNs > 200_000L && isRunning && !speedUp) {
                         val postSliceCycles = cycles
                         synchronized(wakeMonitor) {
+                            var hasImmediateHoldWork = false
+                            for (k in 0 until KEY_COUNT) {
+                                if (!emulationHeldKeys[k] && (pendingHoldStarts[k] || desiredHeldKeys[k])) {
+                                    if (activeKeyCode != k && postSliceCycles >= nextKeyReadyAtCycles) {
+                                        hasImmediateHoldWork = true
+                                        break
+                                    }
+                                } else if (emulationHeldKeys[k] && !desiredHeldKeys[k]) {
+                                    if (postSliceCycles - heldDownAtCycles[k] >= KEY_HOLD_CYCLES) {
+                                        hasImmediateHoldWork = true
+                                        break
+                                    }
+                                }
+                            }
                             val readyForImmediateKeyStep =
                                 resetRequested ||
                                 clearActiveKeyRequested ||
+                                hasImmediateHoldWork ||
                                 (pendingKeyPresses.isNotEmpty() && (
                                     (activeKeyCode == -1 && postSliceCycles >= nextKeyReadyAtCycles) ||
                                     (activeKeyCode != -1 && postSliceCycles - keyDownAtCycles >= MIN_KEY_HOLD_CYCLES)
@@ -241,6 +321,12 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             if (activeKeyCode != -1) {
                 setKey(activeKeyCode, false)
                 activeKeyCode = -1
+            }
+            for (k in 0 until KEY_COUNT) {
+                if (emulationHeldKeys[k]) {
+                    setKey(k, false)
+                    emulationHeldKeys[k] = false
+                }
             }
             if (saveStatesSetting) {
                 save()
@@ -276,6 +362,14 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
             override fun onKeyReleased(keyCode: Int) {
                 enqueueKeyPress(keyCode)
+            }
+
+            override fun onKeyHoldStart(keyCode: Int) {
+                startKeyHold(keyCode)
+            }
+
+            override fun onKeyHoldEnd(keyCode: Int) {
+                endKeyHold(keyCode)
             }
 
             override fun onResetReleased() {
@@ -436,6 +530,13 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     override fun onPause() {
         super.onPause()
+        if (::keypadLayout.isInitialized) {
+            keypadLayout.cancelAllTouches(notifyHoldEnd = false)
+        }
+        synchronized(wakeMonitor) {
+            desiredHeldKeys.fill(false)
+            pendingHoldStarts.fill(false)
+        }
         stopEmulation()
         if (activity?.isFinishing == true) {
             sessionActive = false
@@ -521,9 +622,31 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         }
     }
 
+    private fun startKeyHold(keyCode: Int) {
+        if (keyCode !in 0 until KEY_COUNT) return
+        synchronized(wakeMonitor) {
+            desiredHeldKeys[keyCode] = true
+            pendingHoldStarts[keyCode] = true
+            wakeMonitor.notifyAll()
+        }
+    }
+
+    private fun endKeyHold(keyCode: Int) {
+        if (keyCode !in 0 until KEY_COUNT) return
+        synchronized(wakeMonitor) {
+            desiredHeldKeys[keyCode] = false
+            wakeMonitor.notifyAll()
+        }
+    }
+
     private fun clearQueuedKeys() {
+        if (::keypadLayout.isInitialized) {
+            keypadLayout.cancelAllTouches(notifyHoldEnd = false)
+        }
         synchronized(wakeMonitor) {
             pendingKeyPresses.clear()
+            desiredHeldKeys.fill(false)
+            pendingHoldStarts.fill(false)
             clearActiveKeyRequested = true
             wakeMonitor.notifyAll()
         }
@@ -562,9 +685,14 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     private fun performReset() {
         lastCycles = 0L
+        if (::keypadLayout.isInitialized) {
+            keypadLayout.cancelAllTouches(notifyHoldEnd = false)
+        }
         if (!isRunning || runningFuture == null) {
             synchronized(wakeMonitor) {
                 pendingKeyPresses.clear()
+                desiredHeldKeys.fill(false)
+                pendingHoldStarts.fill(false)
                 clearActiveKeyRequested = false
                 resetRequested = false
             }
@@ -579,6 +707,8 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         }
         synchronized(wakeMonitor) {
             pendingKeyPresses.clear()
+            desiredHeldKeys.fill(false)
+            pendingHoldStarts.fill(false)
             resetRequested = true
             wakeMonitor.notifyAll()
         }
@@ -664,6 +794,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         private const val KEY_HOLD_CYCLES: Long = 45 * CYCLES_MS
         private const val MIN_KEY_HOLD_CYCLES: Long = 35 * CYCLES_MS
         private const val KEY_GAP_CYCLES: Long = 35 * CYCLES_MS
+        private const val KEY_COUNT = 64
         private const val MAX_PENDING_KEYS = 16
         private const val ROM_FILE_NAME = "obj_lu.bin"
         private const val NOR_FILE_NAME = "nc1020.nor"

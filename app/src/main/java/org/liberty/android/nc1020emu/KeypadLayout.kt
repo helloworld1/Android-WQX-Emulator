@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.ViewGroup
 import org.liberty.android.nc1020emu.R
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -20,41 +21,99 @@ class KeypadLayout : LinearLayout {
     private lateinit var mainKeypadLayout: LinearLayout
     private var defaultMainKeypadHeight = 0
     private var functionAreaHeight = 0
-    private val onButtonTouchListener = OnTouchListener { v, event ->
-        val keyCode = v.tag as Int
-        if (keyCode == -1 || onButtonPressedListener == null) {
-            return@OnTouchListener false
-        }
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                v.drawableHotspotChanged(event.x, event.y)
-                v.isPressed = true
-                onButtonPressedListener?.onButtonDown()
+    private val buttonTouchHandlers = ArrayList<ButtonTouchHandler>(55)
+
+    private inner class ButtonTouchHandler(
+        private val view: View,
+        private val keyCode: Int
+    ) : OnTouchListener {
+        private var isHolding = false
+        private var holdScheduled = false
+        private val holdRunnable = Runnable {
+            holdScheduled = false
+            if (view.isPressed && !isHolding && keyCode >= 0) {
+                isHolding = true
+                onButtonPressedListener?.onKeyHoldStart(keyCode)
             }
-            MotionEvent.ACTION_MOVE -> {
-                if (v.isPressed) {
-                    val x = event.x
-                    val y = event.y
-                    if (x < 0f || x > v.width || y < 0f || y > v.height) {
+        }
+
+        override fun onTouch(v: View, event: MotionEvent): Boolean {
+            if (keyCode == -1 || onButtonPressedListener == null) {
+                return false
+            }
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    cancelHoldTimer()
+                    if (isHolding) {
+                        isHolding = false
+                        onButtonPressedListener?.onKeyHoldEnd(keyCode)
+                    }
+                    v.drawableHotspotChanged(event.x, event.y)
+                    v.isPressed = true
+                    onButtonPressedListener?.onButtonDown()
+                    if (keyCode >= 0) {
+                        holdScheduled = true
+                        v.postDelayed(holdRunnable, HOLD_THRESHOLD_MS)
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    v.drawableHotspotChanged(event.x, event.y)
+                    if (v.isPressed && !isHolding) {
+                        val x = event.x
+                        val y = event.y
+                        if (x < 0f || x > v.width || y < 0f || y > v.height) {
+                            cancelHoldTimer()
+                            v.isPressed = false
+                        }
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    cancelHoldTimer()
+                    if (isHolding) {
+                        isHolding = false
                         v.isPressed = false
+                        onButtonPressedListener?.onKeyHoldEnd(keyCode)
+                    } else if (v.isPressed) {
+                        v.isPressed = false
+                        if (keyCode == KEYCODE_RESET) {
+                            onButtonPressedListener?.onResetReleased()
+                        } else {
+                            onButtonPressedListener?.onKeyReleased(keyCode)
+                        }
                     }
                 }
-            }
-            MotionEvent.ACTION_UP -> {
-                if (v.isPressed) {
-                    v.isPressed = false
-                    if (keyCode == KEYCODE_RESET) {
-                        onButtonPressedListener?.onResetReleased()
-                    } else {
-                        onButtonPressedListener?.onKeyReleased(keyCode)
-                    }
+                MotionEvent.ACTION_CANCEL -> {
+                    cancel(notifyHoldEnd = true)
                 }
             }
-            MotionEvent.ACTION_CANCEL -> {
-                v.isPressed = false
+            return true
+        }
+
+        fun cancel(notifyHoldEnd: Boolean) {
+            cancelHoldTimer()
+            val wasHolding = isHolding
+            isHolding = false
+            if (view.isPressed) {
+                view.isPressed = false
+            }
+            if (wasHolding && notifyHoldEnd) {
+                onButtonPressedListener?.onKeyHoldEnd(keyCode)
             }
         }
-        true
+
+        private fun cancelHoldTimer() {
+            if (holdScheduled) {
+                holdScheduled = false
+                view.removeCallbacks(holdRunnable)
+            }
+        }
+    }
+
+    private fun attachButtonTouchHandler(view: View, keyCode: Int) {
+        view.tag = keyCode
+        val handler = ButtonTouchHandler(view, keyCode)
+        buttonTouchHandlers.add(handler)
+        view.setOnTouchListener(handler)
     }
 
     constructor(context: Context?) : super(context) {
@@ -85,36 +144,31 @@ class KeypadLayout : LinearLayout {
         val padding = resources.getDimensionPixelSize(R.dimen.function_key_padding)
         f1Button.layoutParams = functionButtonParams
         f1Button.scaleType = ImageView.ScaleType.FIT_XY
-        f1Button.setOnTouchListener(onButtonTouchListener)
-        f1Button.tag = functionButtonsKeycode[0]
+        attachButtonTouchHandler(f1Button, functionButtonsKeycode[0])
         functionKeypadLayout.addView(f1Button)
         val f2Button = ImageButton(context)
         f2Button.setImageResource(R.drawable.f2)
         f2Button.layoutParams = functionButtonParams
         f2Button.scaleType = ImageView.ScaleType.FIT_XY
-        f2Button.setOnTouchListener(onButtonTouchListener)
-        f2Button.tag = functionButtonsKeycode[1]
+        attachButtonTouchHandler(f2Button, functionButtonsKeycode[1])
         functionKeypadLayout.addView(f2Button)
         val f3Button = ImageButton(context)
         f3Button.setImageResource(R.drawable.f3)
         f3Button.layoutParams = functionButtonParams
         f3Button.scaleType = ImageView.ScaleType.FIT_XY
-        f3Button.setOnTouchListener(onButtonTouchListener)
-        f3Button.tag = functionButtonsKeycode[2]
+        attachButtonTouchHandler(f3Button, functionButtonsKeycode[2])
         functionKeypadLayout.addView(f3Button)
         val f4Button = ImageButton(context)
         f4Button.setImageResource(R.drawable.f4)
         f4Button.layoutParams = functionButtonParams
         f4Button.scaleType = ImageView.ScaleType.FIT_XY
-        f4Button.setOnTouchListener(onButtonTouchListener)
-        f4Button.tag = functionButtonsKeycode[3]
+        attachButtonTouchHandler(f4Button, functionButtonsKeycode[3])
         functionKeypadLayout.addView(f4Button)
         val onoffButton = ImageButton(context)
         onoffButton.setImageResource(R.drawable.onoff)
         onoffButton.layoutParams = functionButtonParams
         onoffButton.scaleType = ImageView.ScaleType.FIT_XY
-        onoffButton.setOnTouchListener(onButtonTouchListener)
-        onoffButton.tag = functionButtonsKeycode[4]
+        attachButtonTouchHandler(onoffButton, functionButtonsKeycode[4])
         functionKeypadLayout.addView(onoffButton)
         addView(functionKeypadLayout)
         defaultMainKeypadHeight = resources.getDimensionPixelSize(R.dimen.main_keypad_height)
@@ -135,13 +189,23 @@ class KeypadLayout : LinearLayout {
                 button.minHeight = 0
                 button.minimumHeight = 0
                 button.setBackgroundResource(R.drawable.keypad_button)
-                button.tag = mainButtonsKeycode[j][i]
-                button.setOnTouchListener(onButtonTouchListener)
+                attachButtonTouchHandler(button, mainButtonsKeycode[j][i])
                 rowLayout.addView(button)
             }
             mainKeypadLayout.addView(rowLayout)
         }
         addView(mainKeypadLayout)
+    }
+
+    override fun onDetachedFromWindow() {
+        cancelAllTouches(notifyHoldEnd = true)
+        super.onDetachedFromWindow()
+    }
+
+    fun cancelAllTouches(notifyHoldEnd: Boolean = true) {
+        for (handler in buttonTouchHandlers) {
+            handler.cancel(notifyHoldEnd)
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -167,10 +231,13 @@ class KeypadLayout : LinearLayout {
     interface OnButtonPressedListener {
         fun onButtonDown()
         fun onKeyReleased(keyCode: Int)
+        fun onKeyHoldStart(keyCode: Int)
+        fun onKeyHoldEnd(keyCode: Int)
         fun onResetReleased()
     }
 
     companion object {
         private const val KEYCODE_RESET = -2
+        const val HOLD_THRESHOLD_MS = 500L
     }
 }
