@@ -1,11 +1,12 @@
 WQX Emulator brings the classic GoldenGlobal WQX (文曲星) NC1020 electronic dictionary and handheld organizer to Android with fast, accurate native emulation.
 
 Features:
-- Authentic 6502 CPU, I/O, LCD, real-time clock, and DSP audio emulation written in native C
+- Authentic 6502 CPU, I/O, LCD with side status indicators and pixel grid, real-time clock, and DSP audio emulation written in native C
 - Low-latency audio via AAudio / OpenSL ES for key beeps, melodies, English word pronunciation (发音), and Mandarin voice time announcement (报时)
+- Built-in NOR flash file browser to view, upload/convert, and export WQX files (.txt, .bas, .ski, .bin) and 512 KB .nor flash images
 - Automatic date and time synchronization with your Android device's system clock
 - Built-in NC1020 dictionaries, organizer, schedule, calculator, GVBASIC, and classic games
-- Portrait and landscape layouts with a realistic NC1020 keypad skin and release-triggered keys
+- Portrait and landscape layouts with a realistic NC1020 keypad skin, release-triggered taps, long-press key hold, and haptic feedback
 - Turbo (SpeedUp) mode for fast-forwarding emulation
 - Automatic and manual save states, plus factory reset support
 - Material 3 interface with Light, Dark, and Follow System themes

@@ -1,0 +1,5 @@
+- Added NOR flash file browser to view, upload, and export files (.txt, .bas, .ski, .bin) and 512 KB .nor images
+- Added authentic side LCD status indicators and optional pixel grid display
+- Added long-press (>500ms) key hold, configurable haptic feedback, and keypad Reset button
+- Improved audio pitch accuracy for key beeps and voice time announcement
+- Fixed input latency and pause behavior in Block World (方块世界)
