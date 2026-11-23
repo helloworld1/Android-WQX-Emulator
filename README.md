@@ -1,5 +1,7 @@
 # WQX Emulator for Android (文曲星 NC1020 模拟器)
 
+![WQX Emulator Feature Graphic](arts/feature_graphic.png)
+
 Bring the legendary **GoldenGlobal WQX NC1020 (文曲星)** pocket electronic dictionary, organizer, and retro gaming handheld back to life on Android — powered by fast, cycle-paced native C emulation and a modern Material 3 interface.
 
 Whether you want to look up words with authentic robotic English speech, tend your virtual pet, push crates in *Sokoban*, grind martial arts in *Legend of Heroes (黄金英雄坛说)* and *Exorcist (伏魔记)*, or write `GVBASIC` programs on the go, **WQX Emulator** recreates the genuine NC1020 hardware experience down to the LCD status segments and key beeps.

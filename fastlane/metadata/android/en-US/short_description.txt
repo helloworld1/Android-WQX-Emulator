@@ -1,1 +1,1 @@
-Classic WQX NC1020 electronic dictionary emulator with sound & voice support.
+Relive the classic WQX NC1020 pocket dictionary, retro games, voice & GVBASIC.

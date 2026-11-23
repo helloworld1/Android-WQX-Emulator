@@ -1,12 +1,8 @@
-WQX Emulator brings the classic GoldenGlobal WQX (文曲星) NC1020 electronic dictionary and handheld organizer to Android with fast, accurate native emulation.
+Relive the classic WQX NC1020 (文曲星) electronic dictionary and pocket computer on Android! From looking up words with retro voice speech to playing legendary RPGs and writing BASIC code, WQX Emulator brings back the authentic handheld experience.
 
-Features:
-- Authentic 6502 CPU, I/O, LCD with side status indicators and pixel grid, real-time clock, and DSP audio emulation written in native C
-- Low-latency audio via AAudio / OpenSL ES for key beeps, melodies, English word pronunciation (发音), and Mandarin voice time announcement (报时)
-- Built-in NOR flash file browser to view, upload/convert, and export WQX files (.txt, .bas, .ski, .bin) and 512 KB .nor flash images
-- Automatic date and time synchronization with your Android device's system clock
-- Built-in NC1020 dictionaries, organizer, schedule, calculator, GVBASIC, and classic games
-- Portrait and landscape layouts with a realistic NC1020 keypad skin, release-triggered taps, long-press key hold, and haptic feedback
-- Turbo (SpeedUp) mode for fast-forwarding emulation
-- Automatic and manual save states, plus factory reset support
-- Material 3 interface with Light, Dark, and Follow System themes
+Highlights:
+• Built-in Classics: E-C/C-E dictionaries, calendar, schedule, calculator, GVBASIC, and nostalgic games including Legend of Heroes (英雄坛说), Exorcist (伏魔记), Block World, and Sokoban.
+• Authentic Look & Sound: Classic green dot-matrix LCD with side status icons and pixel grid, plus crisp key beeps, melodies, English pronunciation (发音), and Mandarin time announcement (报时).
+• Tactile Keypad & Layouts: Play comfortably in portrait or side-by-side landscape mode with release-triggered taps, long-press key hold, and customizable haptic feedback.
+• Built-in NOR File Manager: Browse, preview, import, and export WQX ebooks (.txt), GVBASIC programs (.bas), boot graphics (.ski), apps (.bin), and full .nor backups right on your phone.
+• Modern Convenience: Auto clock sync, SpeedUp turbo mode, automatic & manual save states, and Material 3 Light/Dark themes.
