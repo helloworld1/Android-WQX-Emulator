@@ -76,7 +76,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private lateinit var vibrationHelper: VibrationHelper
     private var lcdStatusRenderer: LcdStatusRenderer? = null
     private lateinit var emulatorContainer: LinearLayout
+    private lateinit var upperLidPanel: LinearLayout
+    private lateinit var brandHeader: View
     private lateinit var lcdContainer: LinearLayout
+    private lateinit var lcdWell: View
     private lateinit var keypadLayout: KeypadLayout
     private lateinit var lcdSurface: SurfaceView
     private lateinit var infoText: TextView
@@ -351,7 +354,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             ContextCompat.getColor(requireContext(), R.color.lcd_background)
         )
         emulatorContainer = view.findViewById(R.id.emulator_container)
+        upperLidPanel = view.findViewById(R.id.upper_lid_panel)
+        brandHeader = view.findViewById(R.id.wqx_brand_header)
         lcdContainer = view.findViewById(R.id.lcd_container)
+        lcdWell = view.findViewById(R.id.lcd_well)
         keypadLayout = view.findViewById(R.id.keypad_layout)
         lcdSurface = view.findViewById(R.id.lcd_surface)
         infoText = view.findViewById(R.id.info_text)
@@ -382,9 +388,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                 updateLcdLayoutSize()
             }
         }
-        lcdContainer.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+        upperLidPanel.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
             if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
-                lcdContainer.post {
+                upperLidPanel.post {
                     if (isAdded && this.view != null) {
                         updateLcdLayoutSize()
                     }
@@ -393,7 +399,6 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         }
         val toolbar: Toolbar = view.findViewById(R.id.toolbar)
         setupToolbar(toolbar)
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val initialToolbarLeft = toolbar.paddingLeft
         val initialToolbarRight = toolbar.paddingRight
         val initialToolbarBottom = toolbar.paddingBottom
@@ -411,21 +416,12 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
                 initialToolbarRight + bars.right,
                 initialToolbarBottom
             )
-            if (isLandscape) {
-                emulatorContainer.setPadding(
-                    initialContainerLeft + bars.left,
-                    initialContainerTop,
-                    initialContainerRight + bars.right,
-                    initialContainerBottom + bars.bottom
-                )
-            } else {
-                emulatorContainer.setPadding(
-                    initialContainerLeft + bars.left,
-                    initialContainerTop,
-                    initialContainerRight + bars.right,
-                    initialContainerBottom
-                )
-            }
+            emulatorContainer.setPadding(
+                initialContainerLeft + bars.left,
+                initialContainerTop,
+                initialContainerRight + bars.right,
+                initialContainerBottom + bars.bottom
+            )
             insets
         }
         initEmulation(forceReload = !sessionActive)
@@ -437,32 +433,65 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     }
 
     private fun updateLcdLayoutSize() {
-        val rootView = view ?: return
-        val containerWidth = lcdContainer.width
-        if (containerWidth <= 0) return
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val maxLcdHeight = if (isLandscape) {
-            (lcdContainer.height - infoText.height).coerceAtLeast(1)
+        if (view == null || !::upperLidPanel.isInitialized) return
+        val lidWidth = upperLidPanel.width
+        val lidHeight = upperLidPanel.height
+        if (lidWidth <= 0 || lidHeight <= 0) return
+
+        val lidRecess = view?.findViewById<View>(R.id.lid_recess_frame)
+        val recessHoriz = (lidRecess?.paddingLeft ?: 0) + (lidRecess?.paddingRight ?: 0)
+        val recessVert = (lidRecess?.paddingTop ?: 0) + (lidRecess?.paddingBottom ?: 0)
+
+        val horizChrome = upperLidPanel.paddingLeft + upperLidPanel.paddingRight +
+            recessHoriz +
+            lcdContainer.paddingLeft + lcdContainer.paddingRight +
+            lcdWell.paddingLeft + lcdWell.paddingRight
+        val maxLcdWidth = (lidWidth - horizChrome).coerceAtLeast(1)
+
+        val infoTopMargin = (infoText.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin ?: 0
+        val infoReserve = infoText.height.coerceAtLeast((14f * resources.displayMetrics.density).toInt()) + infoTopMargin
+        val louverReserve = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            0
         } else {
-            (rootView.height - keypadLayout.height - infoText.height).coerceAtLeast(1)
+            (22f * resources.displayMetrics.density).toInt()
         }
+        val baseVertChrome = upperLidPanel.paddingTop + upperLidPanel.paddingBottom +
+            recessVert +
+            louverReserve +
+            lcdContainer.paddingTop + lcdContainer.paddingBottom +
+            lcdWell.paddingTop + lcdWell.paddingBottom +
+            infoReserve
+
         val logicalWidth = if (showLcdStatusSetting) {
             LcdStatusRenderer.TOTAL_UNITS_WITH_STATUS.toInt()
         } else {
             LcdStatusRenderer.MATRIX_COLS
         }
         val logicalHeight = LcdStatusRenderer.MATRIX_ROWS
-        val targetWidth = minOf(containerWidth, maxLcdHeight * logicalWidth / logicalHeight)
+        val fullWidthLcdHeight = maxLcdWidth * logicalHeight / logicalWidth
+
+        val brandLp = brandHeader.layoutParams as? ViewGroup.MarginLayoutParams
+        val brandHeight = (if (brandHeader.height > 0) brandHeader.height else (24f * resources.displayMetrics.density).toInt()) +
+            (brandLp?.topMargin ?: 0) + (brandLp?.bottomMargin ?: 0)
+        val showBrand = (lidHeight - baseVertChrome - brandHeight) >= (fullWidthLcdHeight * 80 / 100)
+        val desiredBrandVisibility = if (showBrand) View.VISIBLE else View.GONE
+        if (brandHeader.visibility != desiredBrandVisibility) {
+            brandHeader.visibility = desiredBrandVisibility
+        }
+
+        val maxLcdHeight = (lidHeight - baseVertChrome - if (showBrand) brandHeight else 0).coerceAtLeast(1)
+        val targetWidth = minOf(maxLcdWidth, maxLcdHeight * logicalWidth / logicalHeight)
         val targetHeight = targetWidth * logicalHeight / logicalWidth
         if (targetWidth <= 0 || targetHeight <= 0) return
-        val currentParams = lcdSurface.layoutParams as LinearLayout.LayoutParams
+
+        val currentParams = lcdSurface.layoutParams
         if (currentParams.width != targetWidth || currentParams.height != targetHeight) {
             currentParams.width = targetWidth
             currentParams.height = targetHeight
-            currentParams.gravity = Gravity.CENTER_HORIZONTAL
             lcdSurface.layoutParams = currentParams
+            val infoTargetWidth = targetWidth + lcdWell.paddingLeft + lcdWell.paddingRight
             infoText.layoutParams = (infoText.layoutParams as LinearLayout.LayoutParams).apply {
-                width = targetWidth
+                width = infoTargetWidth
                 gravity = Gravity.CENTER_HORIZONTAL
             }
         }

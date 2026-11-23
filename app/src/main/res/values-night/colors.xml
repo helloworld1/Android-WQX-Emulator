@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#7B96E4</color>
+    <color name="colorPrimaryDark">#1E2844</color>
+    <color name="colorAccent">#94AEF5</color>
+    <color name="textColorSecondary">#E8ECF6</color>
+
+    <color name="keypad_button_press">#6630384A</color>
+    <color name="lcd_background">#A8CE97</color>
+
+    <!-- WQX NC1020 Physical Shell Palette (Dark / Ambient Evening Lighting) -->
+    <color name="wqx_toolbar_start">#253255</color>
+    <color name="wqx_toolbar_end">#1B243E</color>
+    <color name="wqx_toolbar_border">#3A4B7A</color>
+
+    <color name="wqx_chassis_outer_start">#363B46</color>
+    <color name="wqx_chassis_outer_end">#262A33</color>
+
+    <color name="wqx_lid_surface_start">#596070</color>
+    <color name="wqx_lid_surface_center">#4B5160</color>
+    <color name="wqx_lid_surface_end">#3E4350</color>
+    <color name="wqx_lid_recess_start">#3B404C</color>
+    <color name="wqx_lid_recess_end">#464C5A</color>
+    <color name="wqx_lid_stroke_light">#71798B</color>
+    <color name="wqx_lid_stroke_dark">#292D36</color>
+
+    <color name="wqx_brand_primary">#E0E6F5</color>
+    <color name="wqx_brand_secondary">#B4BCCF</color>
+    <color name="wqx_lens_brand_text">#E2E7F4</color>
+    <color name="wqx_lens_sub_text">#8E97AA</color>
+    <color name="wqx_brand_badge_bg">#3B4E82</color>
+    <color name="wqx_brand_badge_text">#DCE4F7</color>
+    <color name="wqx_grille_dot">#2F3440</color>
+
+    <color name="wqx_bezel_start">#31343B</color>
+    <color name="wqx_bezel_end">#23262C</color>
+    <color name="wqx_bezel_stroke">#16181D</color>
+    <color name="wqx_lcd_well_bg">#161A16</color>
+    <color name="wqx_lcd_well_stroke">#454A54</color>
+    <color name="wqx_bezel_info_text">#9FB29B</color>
+
+    <color name="wqx_hinge_top">#30343E</color>
+    <color name="wqx_hinge_highlight">#82899A</color>
+    <color name="wqx_hinge_mid">#545A68</color>
+    <color name="wqx_hinge_bottom">#242830</color>
+    <color name="wqx_hinge_seam">#1B1E25</color>
+
+    <color name="wqx_deck_outer_start">#535866</color>
+    <color name="wqx_deck_outer_end">#3E434F</color>
+    <color name="wqx_deck_well_start">#B2B0B3</color>
+    <color name="wqx_deck_well_end">#A7A9A9</color>
+    <color name="wqx_deck_well_stroke">#393D48</color>
+    <color name="wqx_keypad_night_veil">#24161B26</color>
+
+    <color name="wqx_fn_strip_start">#434650</color>
+    <color name="wqx_fn_strip_end">#343740</color>
+    <color name="wqx_fn_strip_stroke">#23262D</color>
+    <color name="wqx_fn_label_text">#E3E7F0</color>
+    <color name="wqx_fn_accent_text">#9DA5B8</color>
+
+    <color name="wqx_fn_pill_top">#C8CEDB</color>
+    <color name="wqx_fn_pill_bottom">#8D95A5</color>
+    <color name="wqx_fn_pill_pressed_top">#7B8394</color>
+    <color name="wqx_fn_pill_pressed_bottom">#A5AEBE</color>
+    <color name="wqx_fn_pill_stroke">#262930</color>
+
+    <color name="wqx_onoff_ring">#252B38</color>
+    <color name="wqx_onoff_top">#A8B8DA</color>
+    <color name="wqx_onoff_bottom">#6E80A6</color>
+    <color name="wqx_onoff_pressed_top">#5D6E92</color>
+    <color name="wqx_onoff_pressed_bottom">#8EA0C6</color>
+
+    <color name="wqx_chin_latch_fill">#313540</color>
+    <color name="wqx_chin_latch_stroke">#5E6474</color>
+</resources>
