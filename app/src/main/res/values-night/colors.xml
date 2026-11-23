@@ -1,75 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#7B96E4</color>
-    <color name="colorPrimaryDark">#1E2844</color>
-    <color name="colorAccent">#94AEF5</color>
-    <color name="textColorSecondary">#E8ECF6</color>
+    <color name="colorPrimary">#6CA8F7</color>
+    <color name="colorPrimaryDark">#0B336B</color>
+    <color name="colorAccent">#82B6FA</color>
+    <color name="textColorSecondary">#ECF2FC</color>
 
-    <color name="keypad_button_press">#6630384A</color>
+    <color name="keypad_button_press">#55001E4D</color>
     <color name="lcd_background">#A8CE97</color>
 
-    <!-- WQX NC1020 Physical Shell Palette (Dark / Ambient Evening Lighting) -->
-    <color name="wqx_toolbar_start">#253255</color>
-    <color name="wqx_toolbar_end">#1B243E</color>
-    <color name="wqx_toolbar_border">#3A4B7A</color>
+    <!-- WQX NC1020 Render-Accurate Palette (Dark Theme - Evening Studio Lighting) -->
+    <color name="wqx_toolbar_start">#0E448F</color>
+    <color name="wqx_toolbar_end">#09316B</color>
+    <color name="wqx_toolbar_border">#2966BA</color>
 
-    <color name="wqx_chassis_outer_start">#363B46</color>
-    <color name="wqx_chassis_outer_end">#262A33</color>
+    <!-- Backdrop behind outer rounded shell corners (no pitch-black void) -->
+    <color name="wqx_chassis_outer_start">#1B2538</color>
+    <color name="wqx_chassis_outer_end">#141C2B</color>
 
-    <color name="wqx_lid_surface_start">#596070</color>
-    <color name="wqx_lid_surface_center">#4B5160</color>
-    <color name="wqx_lid_surface_end">#3E4350</color>
-    <color name="wqx_lid_recess_start">#3B404C</color>
-    <color name="wqx_lid_recess_end">#464C5A</color>
-    <color name="wqx_lid_stroke_light">#71798B</color>
-    <color name="wqx_lid_stroke_dark">#292D36</color>
+    <!-- Upper Lid Cobalt Blue Rim + Soft Moonlit Silver Faceplate -->
+    <color name="wqx_blue_rim_start">#1256B5</color>
+    <color name="wqx_blue_rim_end">#08387D</color>
+    <color name="wqx_blue_rim_highlight">#3A80DE</color>
+    <color name="wqx_top_clasp_fill">#B5BCC8</color>
+    <color name="wqx_top_clasp_stroke">#6F7785</color>
 
-    <color name="wqx_brand_primary">#E0E6F5</color>
-    <color name="wqx_brand_secondary">#B4BCCF</color>
-    <color name="wqx_lens_brand_text">#E2E7F4</color>
-    <color name="wqx_lens_sub_text">#8E97AA</color>
-    <color name="wqx_brand_badge_bg">#3B4E82</color>
-    <color name="wqx_brand_badge_text">#DCE4F7</color>
-    <color name="wqx_grille_dot">#2F3440</color>
+    <color name="wqx_faceplate_start">#BFC5D1</color>
+    <color name="wqx_faceplate_end">#AEB5C3</color>
+    <color name="wqx_faceplate_stroke">#7A8292</color>
 
-    <color name="wqx_bezel_start">#31343B</color>
-    <color name="wqx_bezel_end">#23262C</color>
-    <color name="wqx_bezel_stroke">#16181D</color>
-    <color name="wqx_lcd_well_bg">#161A16</color>
-    <color name="wqx_lcd_well_stroke">#454A54</color>
-    <color name="wqx_bezel_info_text">#9FB29B</color>
+    <color name="wqx_nc1020_serif">#141820</color>
+    <color name="wqx_logo_brush">#2D323C</color>
+    <color name="wqx_voice_badge_bg">#121B33</color>
+    <color name="wqx_voice_badge_text">#E6ECF8</color>
 
-    <color name="wqx_hinge_top">#30343E</color>
-    <color name="wqx_hinge_highlight">#82899A</color>
-    <color name="wqx_hinge_mid">#545A68</color>
-    <color name="wqx_hinge_bottom">#242830</color>
-    <color name="wqx_hinge_seam">#1B1E25</color>
+    <!-- Cool Silver-Slate Screen Bezel -->
+    <color name="wqx_bezel_start">#888D98</color>
+    <color name="wqx_bezel_end">#7A7F8A</color>
+    <color name="wqx_bezel_stroke">#5A5F6A</color>
+    <color name="wqx_lcd_well_bg">#2B3525</color>
+    <color name="wqx_lcd_well_stroke">#535E4E</color>
+    <color name="wqx_bezel_num_text">#12151A</color>
+    <color name="wqx_bezel_info_text">#373D48</color>
 
-    <color name="wqx_deck_outer_start">#535866</color>
-    <color name="wqx_deck_outer_end">#3E434F</color>
-    <color name="wqx_deck_well_start">#B2B0B3</color>
-    <color name="wqx_deck_well_end">#A7A9A9</color>
-    <color name="wqx_deck_well_stroke">#393D48</color>
-    <color name="wqx_keypad_night_veil">#24161B26</color>
+    <!-- Sky-Blue F1..F4 & Round ON/OFF Buttons -->
+    <color name="wqx_fn_label_text">#13161C</color>
+    <color name="wqx_fn_pill_top">#8DB9DC</color>
+    <color name="wqx_fn_pill_bottom">#5F8FB6</color>
+    <color name="wqx_fn_pill_pressed_top">#527FA6</color>
+    <color name="wqx_fn_pill_pressed_bottom">#7AA8CE</color>
+    <color name="wqx_fn_pill_stroke">#1F2833</color>
 
-    <color name="wqx_fn_strip_start">#434650</color>
-    <color name="wqx_fn_strip_end">#343740</color>
-    <color name="wqx_fn_strip_stroke">#23262D</color>
-    <color name="wqx_fn_label_text">#E3E7F0</color>
-    <color name="wqx_fn_accent_text">#9DA5B8</color>
+    <color name="wqx_onoff_outer_well">#8C929F</color>
+    <color name="wqx_onoff_ring">#1E242E</color>
+    <color name="wqx_onoff_top">#95C2E2</color>
+    <color name="wqx_onoff_bottom">#6498BF</color>
+    <color name="wqx_onoff_pressed_top">#5689B0</color>
+    <color name="wqx_onoff_pressed_bottom">#82B3D8</color>
 
-    <color name="wqx_fn_pill_top">#C8CEDB</color>
-    <color name="wqx_fn_pill_bottom">#8D95A5</color>
-    <color name="wqx_fn_pill_pressed_top">#7B8394</color>
-    <color name="wqx_fn_pill_pressed_bottom">#A5AEBE</color>
-    <color name="wqx_fn_pill_stroke">#262930</color>
+    <!-- Two-Tone Hinge (Night Shaded) -->
+    <color name="wqx_hinge_white_top">#858C99</color>
+    <color name="wqx_hinge_white_hi">#CDD3DF</color>
+    <color name="wqx_hinge_white_bot">#6D7482</color>
+    <color name="wqx_hinge_blue_top">#09469C</color>
+    <color name="wqx_hinge_blue_hi">#3E87E0</color>
+    <color name="wqx_hinge_blue_bot">#052F6E</color>
+    <color name="wqx_hinge_collar_top">#7E8592</color>
+    <color name="wqx_hinge_collar_hi">#C5CBD7</color>
+    <color name="wqx_hinge_collar_bot">#626875</color>
 
-    <color name="wqx_onoff_ring">#252B38</color>
-    <color name="wqx_onoff_top">#A8B8DA</color>
-    <color name="wqx_onoff_bottom">#6E80A6</color>
-    <color name="wqx_onoff_pressed_top">#5D6E92</color>
-    <color name="wqx_onoff_pressed_bottom">#8EA0C6</color>
+    <!-- Lower Base Moonlit Silver Shell + Speaker Grille + Clean Vector Keypad -->
+    <color name="wqx_deck_outer_start">#BAC0CC</color>
+    <color name="wqx_deck_outer_end">#A7AEBC</color>
+    <color name="wqx_deck_stroke">#6E7686</color>
 
-    <color name="wqx_chin_latch_fill">#313540</color>
-    <color name="wqx_chin_latch_stroke">#5E6474</color>
+    <color name="wqx_speaker_panel_top">#9BA1AE</color>
+    <color name="wqx_speaker_panel_bot">#8E94A2</color>
+    <color name="wqx_speaker_panel_stroke">#686E7C</color>
+    <color name="wqx_speaker_hole">#15181E</color>
+    <color name="wqx_speaker_url">#2C313B</color>
+
+    <!-- Keypad Keycap Colors (Night-Balanced) -->
+    <color name="wqx_key_std_top">#CFD4DF</color>
+    <color name="wqx_key_std_bot">#B3B9C6</color>
+    <color name="wqx_key_std_text">#101318</color>
+    <color name="wqx_key_sub_blue">#094AA8</color>
+    <color name="wqx_key_sub_red">#B81D26</color>
+    <color name="wqx_key_num_blue_top">#1560C8</color>
+    <color name="wqx_key_num_blue_bot">#09439A</color>
+    <color name="wqx_key_num_text">#F2F6FC</color>
+    <color name="wqx_key_orange_top">#DE823A</color>
+    <color name="wqx_key_orange_bot">#C25F1A</color>
+    <color name="wqx_key_lavender_top">#A49FB8</color>
+    <color name="wqx_key_lavender_bot">#85809C</color>
+    <color name="wqx_key_border">#252932</color>
+    <color name="wqx_key_shadow">#686E7B</color>
+    <color name="wqx_reset_pin">#0C56BE</color>
+
+    <color name="wqx_chin_latch_fill">#094AA6</color>
+    <color name="wqx_chin_latch_stroke">#687080</color>
 </resources>

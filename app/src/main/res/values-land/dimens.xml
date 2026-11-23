@@ -1,10 +1,10 @@
 <resources>
-    <dimen name="main_keypad_height">204dp</dimen>
-    <dimen name="function_keypad_width">50dp</dimen>
-    <dimen name="function_keypad_height">36dp</dimen>
-    <dimen name="function_keypad_bottom_margin">4dp</dimen>
-    <dimen name="function_pill_width">32dp</dimen>
-    <dimen name="function_pill_height">11dp</dimen>
-    <dimen name="onoff_button_size">17dp</dimen>
+    <dimen name="main_keypad_height">220dp</dimen>
+    <dimen name="function_keypad_width">44dp</dimen>
+    <dimen name="function_pill_width">27dp</dimen>
+    <dimen name="function_pill_height">9dp</dimen>
+    <dimen name="function_label_text_size">8sp</dimen>
+    <dimen name="onoff_assembly_size">42dp</dimen>
+    <dimen name="lid_chin_min_height">44dp</dimen>
     <dimen name="toolbar_height">42dp</dimen>
 </resources>

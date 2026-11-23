@@ -1,35 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Subtle royal-blue bottom corner trim like real NC1020 base -->
     <item>
         <shape android:shape="rectangle">
             <corners
-                android:topLeftRadius="6dp"
-                android:topRightRadius="6dp"
-                android:bottomLeftRadius="16dp"
-                android:bottomRightRadius="16dp" />
+                android:topLeftRadius="8dp"
+                android:topRightRadius="8dp"
+                android:bottomLeftRadius="20dp"
+                android:bottomRightRadius="20dp" />
+            <solid android:color="@color/wqx_blue_rim_end" />
+        </shape>
+    </item>
+    <!-- Sculpted Pearl-White Lower Keyboard Body -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="3dp">
+        <shape android:shape="rectangle">
+            <corners
+                android:topLeftRadius="7dp"
+                android:topRightRadius="7dp"
+                android:bottomLeftRadius="18dp"
+                android:bottomRightRadius="18dp" />
             <gradient
                 android:angle="270"
                 android:startColor="@color/wqx_deck_outer_start"
                 android:endColor="@color/wqx_deck_outer_end" />
             <stroke
                 android:width="1dp"
-                android:color="@color/wqx_lid_stroke_dark" />
-        </shape>
-    </item>
-    <item
-        android:left="1dp"
-        android:top="1dp"
-        android:right="1dp"
-        android:bottom="2dp">
-        <shape android:shape="rectangle">
-            <corners
-                android:topLeftRadius="5dp"
-                android:topRightRadius="5dp"
-                android:bottomLeftRadius="15dp"
-                android:bottomRightRadius="15dp" />
-            <stroke
-                android:width="1dp"
-                android:color="@color/wqx_lid_stroke_light" />
+                android:color="@color/wqx_deck_stroke" />
         </shape>
     </item>
 </layer-list>
