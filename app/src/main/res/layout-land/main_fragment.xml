@@ -306,7 +306,7 @@
             android:layout_marginBottom="4dp" />
 
         <!-- Right Clamshell Base (Speaker Grille + Vector 5x10 Keypad + Blue Latch) -->
-        <LinearLayout
+        <org.liberty.android.nc1020emu.WqxLowerDeckLayout
             android:id="@+id/lower_deck_panel"
             android:layout_width="0dp"
             android:layout_height="match_parent"
@@ -322,22 +322,20 @@
             <org.liberty.android.nc1020emu.WqxSpeakerGrilleView
                 android:id="@+id/wqx_speaker_grille"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginBottom="4dp"
-                android:layout_weight="0.19" />
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp" />
 
             <org.liberty.android.nc1020emu.KeypadLayout
                 android:id="@+id/keypad_layout"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="0.81" />
+                android:layout_height="wrap_content" />
 
             <View
                 android:layout_width="34dp"
                 android:layout_height="5dp"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="4dp"
                 android:background="@drawable/wqx_chin_latch_bg" />
-        </LinearLayout>
+        </org.liberty.android.nc1020emu.WqxLowerDeckLayout>
 
     </LinearLayout>
 

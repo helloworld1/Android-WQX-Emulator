@@ -9,13 +9,223 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.util.AttributeSet
-import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
+
+/**
+ * Root clamshell container.
+ * In Portrait (VERTICAL), sizes the upper lid and lower deck to natural NC1020 proportions
+ * (with KeypadLayout capped at 1:1 square main buttons) and top-aligns the open clamshell
+ * so any leftover height on tall phones remains cleanly blank at the bottom.
+ */
+class WqxClamshellContainerLayout @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : LinearLayout(context, attrs, defStyleAttr) {
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        if (orientation != VERTICAL || childCount < 3 || MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            return
+        }
+
+        val totalW = MeasureSpec.getSize(widthMeasureSpec)
+        val totalH = MeasureSpec.getSize(heightMeasureSpec)
+        val innerW = (totalW - paddingLeft - paddingRight).coerceAtLeast(1)
+        val innerH = (totalH - paddingTop - paddingBottom).coerceAtLeast(1)
+
+        val upperLid = getChildAt(0)
+        val hinge = getChildAt(1)
+        val lowerDeck = getChildAt(2)
+
+        val upperLp = upperLid.layoutParams as LayoutParams
+        val hingeLp = hinge.layoutParams as LayoutParams
+        val lowerLp = lowerDeck.layoutParams as LayoutParams
+
+        measureChildWithMargins(hinge, widthMeasureSpec, 0, heightMeasureSpec, 0)
+        val hingeTotalH = hinge.measuredHeight + hingeLp.topMargin + hingeLp.bottomMargin
+
+        val upperW = (innerW - upperLp.leftMargin - upperLp.rightMargin).coerceAtLeast(1)
+        val lowerW = (innerW - lowerLp.leftMargin - lowerLp.rightMargin).coerceAtLeast(1)
+        val availForHalves = (
+            innerH - hingeTotalH - upperLp.topMargin - upperLp.bottomMargin -
+                lowerLp.topMargin - lowerLp.bottomMargin
+        ).coerceAtLeast(2)
+
+        val idealUpperH = (upperW * 0.76f).roundToInt().coerceAtLeast(1)
+        // Reserve at least 46% for upper lid when vertically constrained, up to idealUpperH on tall screens
+        val initialUpperH = min(idealUpperH, (availForHalves * 0.46f).roundToInt().coerceAtLeast(1))
+        val maxLowerH = (availForHalves - initialUpperH).coerceAtLeast(1)
+
+        lowerDeck.measure(
+            MeasureSpec.makeMeasureSpec(lowerW, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(maxLowerH, MeasureSpec.AT_MOST)
+        )
+        val finalUpperH = min(idealUpperH, (availForHalves - lowerDeck.measuredHeight).coerceAtLeast(1))
+        upperLid.measure(
+            MeasureSpec.makeMeasureSpec(upperW, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(finalUpperH, MeasureSpec.EXACTLY)
+        )
+
+        setMeasuredDimension(
+            resolveSize(totalW, widthMeasureSpec),
+            resolveSize(totalH, heightMeasureSpec)
+        )
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        if (orientation != VERTICAL || childCount < 3) {
+            super.onLayout(changed, l, t, r, b)
+            return
+        }
+
+        val innerLeft = paddingLeft
+        val innerRight = (r - l) - paddingRight
+        val availW = (innerRight - innerLeft).coerceAtLeast(0)
+        var curY = paddingTop
+
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            if (child.visibility == GONE) continue
+            val lp = child.layoutParams as LayoutParams
+            val cw = child.measuredWidth
+            val ch = child.measuredHeight
+            val childLeft = innerLeft + lp.leftMargin +
+                ((availW - lp.leftMargin - lp.rightMargin - cw).coerceAtLeast(0) / 2)
+            curY += lp.topMargin
+            child.layout(childLeft, curY, childLeft + cw, curY + ch)
+            curY += ch + lp.bottomMargin
+        }
+    }
+}
+
+/**
+ * Lower clamshell keyboard base containing:
+ * [0] WqxSpeakerGrilleView, [1] bounded-aspect KeypadLayout, [2] bottom latch View.
+ */
+class WqxLowerDeckLayout @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : LinearLayout(context, attrs, defStyleAttr) {
+
+    private val density = resources.displayMetrics.density
+
+    init {
+        orientation = VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        if (childCount < 3 || MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            return
+        }
+
+        val totalW = MeasureSpec.getSize(widthMeasureSpec)
+        val totalH = MeasureSpec.getSize(heightMeasureSpec)
+        val heightMode = MeasureSpec.getMode(heightMeasureSpec)
+        val innerW = (totalW - paddingLeft - paddingRight).coerceAtLeast(1)
+        val innerH = (totalH - paddingTop - paddingBottom).coerceAtLeast(1)
+
+        val speaker = getChildAt(0)
+        val keypad = getChildAt(1)
+        val latch = getChildAt(2)
+
+        val speakerLp = speaker.layoutParams as LayoutParams
+        val keypadLp = keypad.layoutParams as LayoutParams
+        val latchLp = latch.layoutParams as LayoutParams
+
+        measureChildWithMargins(latch, widthMeasureSpec, 0, heightMeasureSpec, 0)
+        val latchTotalH = latch.measuredHeight + latchLp.topMargin + latchLp.bottomMargin
+
+        val minSpeakerH = (38f * density).roundToInt()
+        val idealSpeakerH = (
+            innerW * if (heightMode == MeasureSpec.EXACTLY) 0.145f else 0.185f
+        ).roundToInt().coerceAtLeast(minSpeakerH)
+
+        val nonSpeakerChrome = latchTotalH + speakerLp.topMargin + speakerLp.bottomMargin +
+            keypadLp.topMargin + keypadLp.bottomMargin
+        val keypadAvailW = (innerW - keypadLp.leftMargin - keypadLp.rightMargin).coerceAtLeast(1)
+
+        // Give speaker its ideal height if there is room, shrinking down to minSpeakerH on short screens
+        val maxKeypadWithIdealSpeaker = (innerH - nonSpeakerChrome - idealSpeakerH).coerceAtLeast(1)
+        val maxKeypadWithMinSpeaker = (innerH - nonSpeakerChrome - minSpeakerH).coerceAtLeast(1)
+        keypad.measure(
+            MeasureSpec.makeMeasureSpec(keypadAvailW, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(maxKeypadWithIdealSpeaker, MeasureSpec.AT_MOST)
+        )
+        if (keypad.measuredWidth < keypadAvailW && maxKeypadWithMinSpeaker > maxKeypadWithIdealSpeaker) {
+            // Screen is vertically tight enough that keypad hit its 1.21:1 floor; shrink speaker first
+            keypad.measure(
+                MeasureSpec.makeMeasureSpec(keypadAvailW, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(maxKeypadWithMinSpeaker, MeasureSpec.AT_MOST)
+            )
+        }
+        val keypadTotalH = keypad.measuredHeight + keypadLp.topMargin + keypadLp.bottomMargin
+
+        val remainingForSpeaker = (
+            innerH - keypadTotalH - latchTotalH - speakerLp.topMargin - speakerLp.bottomMargin
+        ).coerceAtLeast(1)
+        val targetSpeakerH = if (heightMode == MeasureSpec.EXACTLY) {
+            remainingForSpeaker.coerceIn(
+                min(minSpeakerH, remainingForSpeaker),
+                (innerW * 0.22f).roundToInt().coerceAtLeast(idealSpeakerH)
+            )
+        } else {
+            remainingForSpeaker.coerceIn(min(minSpeakerH, remainingForSpeaker), idealSpeakerH)
+        }
+
+        val speakerAvailW = (innerW - speakerLp.leftMargin - speakerLp.rightMargin).coerceAtLeast(1)
+        speaker.measure(
+            MeasureSpec.makeMeasureSpec(speakerAvailW, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(targetSpeakerH, MeasureSpec.EXACTLY)
+        )
+        val speakerTotalH = speaker.measuredHeight + speakerLp.topMargin + speakerLp.bottomMargin
+
+        val contentH = paddingTop + speakerTotalH + keypadTotalH + latchTotalH + paddingBottom
+        val measuredH = if (heightMode == MeasureSpec.EXACTLY) totalH else min(totalH, contentH)
+        setMeasuredDimension(resolveSize(totalW, widthMeasureSpec), measuredH)
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val innerLeft = paddingLeft
+        val innerRight = (r - l) - paddingRight
+        val innerTop = paddingTop
+        val innerBottom = (b - t) - paddingBottom
+        val availW = (innerRight - innerLeft).coerceAtLeast(0)
+        val availH = (innerBottom - innerTop).coerceAtLeast(0)
+
+        var contentH = 0
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            if (child.visibility == GONE) continue
+            val lp = child.layoutParams as LayoutParams
+            contentH += child.measuredHeight + lp.topMargin + lp.bottomMargin
+        }
+
+        var curY = innerTop + ((availH - contentH).coerceAtLeast(0) / 2)
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            if (child.visibility == GONE) continue
+            val lp = child.layoutParams as LayoutParams
+            val cw = child.measuredWidth
+            val ch = child.measuredHeight
+            val childLeft = innerLeft + lp.leftMargin +
+                ((availW - lp.leftMargin - lp.rightMargin - cw).coerceAtLeast(0) / 2)
+            curY += lp.topMargin
+            child.layout(childLeft, curY, childLeft + cw, curY + ch)
+            curY += ch + lp.bottomMargin
+        }
+    }
+}
 
 /**
  * Upper clamshell lid container modeled on the WQX NC1020 industrial design:

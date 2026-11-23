@@ -9,13 +9,13 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.OnTouchListener
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 class KeypadLayout : LinearLayout {
 
@@ -205,14 +205,15 @@ class KeypadLayout : LinearLayout {
             cachedH = h
             val wf = w.toFloat()
             val hf = h.toFloat()
-            val hPad = (wf * 0.065f).coerceIn(1.6f * density, 3.2f * density)
+            val hPad = wf * H_PAD_FRAC
             capLeft = hPad
             capRight = wf - hPad
-            val topLegendZone = if (row == 0) hf * 0.36f else hf * 0.25f
+            val topLegendZone = if (row == 0) hf * ROW0_TOP_ZONE_FRAC else hf * MAIN_TOP_ZONE_FRAC
             baseCapTop = topLegendZone
-            baseCapBottom = hf - (1.8f * density).coerceAtMost(hf * 0.06f)
-            cornerR = (min(capRight - capLeft, baseCapBottom - baseCapTop) * 0.19f)
-                .coerceIn(3f * density, 6f * density)
+            baseCapBottom = hf * (1f - BOTTOM_PAD_FRAC)
+            val capW = capRight - capLeft
+            val capH = baseCapBottom - baseCapTop
+            cornerR = (min(capW, capH) * 0.19f).coerceIn(3f * density, 6.5f * density)
 
             val (topC, botC) = when (spec.style) {
                 KeyStyle.ORANGE_CENTER, KeyStyle.ORANGE_ENTER -> palette.orangeTop to palette.orangeBot
@@ -568,6 +569,7 @@ class KeypadLayout : LinearLayout {
 
     private var onButtonPressedListener: OnButtonPressedListener? = null
     private lateinit var mainKeypadLayout: LinearLayout
+    private val rowLayouts = ArrayList<LinearLayout>(5)
     private var defaultMainKeypadHeight = 0
     private val buttonTouchHandlers = ArrayList<ButtonTouchHandler>(55)
 
@@ -684,28 +686,21 @@ class KeypadLayout : LinearLayout {
         init()
     }
 
-    private fun dp(value: Float): Int {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            value,
-            resources.displayMetrics
-        ).toInt()
-    }
-
     fun init() {
         buttonTouchHandlers.clear()
+        rowLayouts.clear()
         orientation = VERTICAL
         defaultMainKeypadHeight = resources.getDimensionPixelSize(R.dimen.main_keypad_height)
         val palette = SharedKeyPalette(context)
 
+        val defaultWidth = (defaultMainKeypadHeight / MAX_GRID_H_OVER_W).roundToInt()
         mainKeypadLayout = LinearLayout(context).apply {
             orientation = VERTICAL
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, defaultMainKeypadHeight)
-            setPadding(dp(1f), dp(2f), dp(1f), 0)
+            layoutParams = LayoutParams(defaultWidth, defaultMainKeypadHeight)
         }
 
         for (r in 0..4) {
-            val rowWeight = if (r == 0) 0.76f else 1.06f
+            val rowWeight = if (r == 0) ROW_0_WEIGHT else ROW_MAIN_WEIGHT
             val rowLayout = LinearLayout(context).apply {
                 orientation = HORIZONTAL
                 layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, rowWeight)
@@ -718,6 +713,7 @@ class KeypadLayout : LinearLayout {
                 attachButtonTouchHandler(keyView, spec.keyCode)
                 rowLayout.addView(keyView)
             }
+            rowLayouts.add(rowLayout)
             mainKeypadLayout.addView(rowLayout)
         }
 
@@ -736,18 +732,93 @@ class KeypadLayout : LinearLayout {
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val widthMode = MeasureSpec.getMode(widthMeasureSpec)
+        val widthSize = MeasureSpec.getSize(widthMeasureSpec)
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
         val heightSize = MeasureSpec.getSize(heightMeasureSpec)
-        val availH = (heightSize - paddingTop - paddingBottom).coerceAtLeast(1)
-        val targetMainHeight = when (heightMode) {
-            MeasureSpec.EXACTLY -> availH
-            MeasureSpec.AT_MOST -> minOf(defaultMainKeypadHeight, availH)
-            else -> defaultMainKeypadHeight
+
+        val padW = paddingLeft + paddingRight
+        val padH = paddingTop + paddingBottom
+        val defaultWidth = (defaultMainKeypadHeight / MAX_GRID_H_OVER_W).roundToInt()
+
+        val availW = if (widthMode == MeasureSpec.UNSPECIFIED) {
+            defaultWidth
+        } else {
+            (widthSize - padW).coerceAtLeast(1)
         }
-        if (mainKeypadLayout.layoutParams.height != targetMainHeight) {
-            mainKeypadLayout.layoutParams.height = targetMainHeight
+        val availH = if (heightMode == MeasureSpec.UNSPECIFIED) {
+            Int.MAX_VALUE
+        } else {
+            (heightSize - padH).coerceAtLeast(1)
         }
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+
+        // Bottom 4 rows button aspect ratio (capWidth : capHeight) is bounded to:
+        // - at most square (1.00 : 1) when screen is long  -> gridH <= availW * MAX_GRID_H_OVER_W
+        // - at least original 1.21 : 1 when screen is short -> gridH >= gridW * MIN_GRID_H_OVER_W
+        val maxGridHAtFullW = (availW * MAX_GRID_H_OVER_W).roundToInt().coerceAtLeast(1)
+        val minGridHAtFullW = (availW * MIN_GRID_H_OVER_W).roundToInt().coerceAtLeast(1)
+
+        val gridW: Int
+        val gridH: Int
+        when {
+            availH >= maxGridHAtFullW -> {
+                gridW = availW
+                gridH = maxGridHAtFullW
+            }
+            availH >= minGridHAtFullW -> {
+                gridW = availW
+                gridH = availH
+            }
+            else -> {
+                gridH = availH
+                gridW = (availH / MIN_GRID_H_OVER_W).roundToInt().coerceIn(1, availW)
+            }
+        }
+
+        // Slightly more vertical breathing gaps for the bottom two rows (Row 3 and Row 4)
+        val cw = gridW / 10f
+        val gapRow3 = (cw * GAP_ABOVE_ROW3_CW).roundToInt()
+        val gapRow4 = (cw * GAP_BETWEEN_BOTTOM_TWO_ROWS_CW).roundToInt()
+        val lp3 = rowLayouts[3].layoutParams as LayoutParams
+        val lp4 = rowLayouts[4].layoutParams as LayoutParams
+        if (lp3.topMargin != gapRow3) {
+            lp3.topMargin = gapRow3
+        }
+        if (lp4.topMargin != gapRow4) {
+            lp4.topMargin = gapRow4
+        }
+
+        val lp = mainKeypadLayout.layoutParams
+        if (lp.width != gridW || lp.height != gridH) {
+            lp.width = gridW
+            lp.height = gridH
+        }
+        mainKeypadLayout.measure(
+            MeasureSpec.makeMeasureSpec(gridW, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(gridH, MeasureSpec.EXACTLY)
+        )
+
+        val measuredW = when (widthMode) {
+            MeasureSpec.EXACTLY -> widthSize
+            MeasureSpec.AT_MOST -> min(widthSize, gridW + padW)
+            else -> gridW + padW
+        }
+        val measuredH = when (heightMode) {
+            MeasureSpec.EXACTLY -> heightSize
+            MeasureSpec.AT_MOST -> min(heightSize, gridH + padH)
+            else -> gridH + padH
+        }
+        setMeasuredDimension(measuredW, measuredH)
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val availW = ((r - l) - paddingLeft - paddingRight).coerceAtLeast(0)
+        val availH = ((b - t) - paddingTop - paddingBottom).coerceAtLeast(0)
+        val mw = mainKeypadLayout.measuredWidth
+        val mh = mainKeypadLayout.measuredHeight
+        val childLeft = paddingLeft + (availW - mw).coerceAtLeast(0) / 2
+        val childTop = paddingTop + (availH - mh).coerceAtLeast(0) / 2
+        mainKeypadLayout.layout(childLeft, childTop, childLeft + mw, childTop + mh)
     }
 
     fun setOnButtonTouchListener(onButtonPressedListener: OnButtonPressedListener?) {
@@ -766,6 +837,35 @@ class KeypadLayout : LinearLayout {
         private const val KEYCODE_RESET = -2
         private const val TOP_ICON_PHONE = "__PHONE__"
         const val HOLD_THRESHOLD_MS = 500L
+
+        private const val H_PAD_FRAC = 0.065f
+        private const val ROW0_TOP_ZONE_FRAC = 0.35f
+        private const val MAIN_TOP_ZONE_FRAC = 0.25f
+        private const val BOTTOM_PAD_FRAC = 0.05f
+
+        // capW = (1 - 2 * 0.065) * cw = 0.87 * cw; mainRow capH = (1 - 0.25 - 0.05) * rowH = 0.70 * rowH
+        private const val CAP_W_PER_COL = 1f - 2f * H_PAD_FRAC
+        private const val MAIN_CAP_H_FRAC = 1f - MAIN_TOP_ZONE_FRAC - BOTTOM_PAD_FRAC
+        private const val MIN_ASPECT_SQUARE = 1.00f
+        private const val MAX_ASPECT_ORIGINAL = 1.21f
+
+        private const val ROW_0_WEIGHT = 0.76f
+        private const val ROW_MAIN_WEIGHT = 1.00f
+        private const val TOTAL_ROW_WEIGHT = ROW_0_WEIGHT + 4f * ROW_MAIN_WEIGHT
+
+        // Extra vertical row spacing for the bottom two rows (in column-width units)
+        private const val GAP_ABOVE_ROW3_CW = 0.05f
+        private const val GAP_BETWEEN_BOTTOM_TWO_ROWS_CW = 0.16f
+        private const val TOTAL_EXTRA_GAP_CW = GAP_ABOVE_ROW3_CW + GAP_BETWEEN_BOTTOM_TWO_ROWS_CW
+
+        private const val MAX_MAIN_ROW_H_CW = (CAP_W_PER_COL / MIN_ASPECT_SQUARE) / MAIN_CAP_H_FRAC
+        private const val MIN_MAIN_ROW_H_CW = (CAP_W_PER_COL / MAX_ASPECT_ORIGINAL) / MAIN_CAP_H_FRAC
+
+        private const val MAX_GRID_H_OVER_W =
+            (TOTAL_ROW_WEIGHT * MAX_MAIN_ROW_H_CW + TOTAL_EXTRA_GAP_CW) / 10f
+        private const val MIN_GRID_H_OVER_W =
+            (TOTAL_ROW_WEIGHT * MIN_MAIN_ROW_H_CW + TOTAL_EXTRA_GAP_CW) / 10f
+
         private const val DIR_UP = 0
         private const val DIR_DOWN = 1
         private const val DIR_LEFT = 2
