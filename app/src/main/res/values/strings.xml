@@ -42,6 +42,10 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_light">Light</string>
 
+    <string name="skin_setting_title">Skin</string>
+    <string name="skin_authentic">Authentic</string>
+    <string name="skin_full_lcd">Full LCD</string>
+
     <string name="about">About</string>
     <string name="version">Version</string>
     <string name="github_repository">GitHub Repository</string>

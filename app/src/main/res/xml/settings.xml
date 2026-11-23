@@ -38,6 +38,14 @@
         app:useSimpleSummaryProvider="true"/>
 
     <androidx.preference.ListPreference
+        app:key="skin"
+        app:title="@string/skin_setting_title"
+        app:entries="@array/skin_entries"
+        app:entryValues="@array/skin_values"
+        app:defaultValue="authentic"
+        app:useSimpleSummaryProvider="true"/>
+
+    <androidx.preference.ListPreference
         app:key="theme"
         app:title="@string/theme_setting_title"
         app:entries="@array/theme_entries"

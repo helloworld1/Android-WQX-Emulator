@@ -77,15 +77,29 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private var lcdStatusRenderer: LcdStatusRenderer? = null
     private lateinit var emulatorContainer: LinearLayout
     private lateinit var upperLidPanel: LinearLayout
+    private lateinit var lowerDeckPanel: WqxLowerDeckLayout
     private lateinit var brandHeader: View
     private lateinit var lcdContainer: LinearLayout
     private lateinit var lcdWell: View
     private lateinit var lcdBezelNumbers: View
     private lateinit var fnKeysColumn: View
     private lateinit var lidChinRow: View
+    private lateinit var chinEmblem: View
+    private lateinit var lidOnOffBtn: View
+    private lateinit var lidChinUrl: View
+    private lateinit var speakerGrilleView: View
+    private lateinit var deckFnBar: View
     private lateinit var keypadLayout: KeypadLayout
     private lateinit var lcdSurface: SurfaceView
     private lateinit var infoText: TextView
+    private var authLidPadLeft = 0
+    private var authLidPadTop = 0
+    private var authLidPadRight = 0
+    private var authLidPadBottom = 0
+    private var authBezelPadLeft = 0
+    private var authBezelPadTop = 0
+    private var authBezelPadRight = 0
+    private var authBezelPadBottom = 0
 
     private val runnable = Runnable {
         syncSystemTime()
@@ -358,20 +372,42 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         )
         emulatorContainer = view.findViewById(R.id.emulator_container)
         upperLidPanel = view.findViewById(R.id.upper_lid_panel)
+        lowerDeckPanel = view.findViewById(R.id.lower_deck_panel)
         brandHeader = view.findViewById(R.id.wqx_brand_header)
         lcdContainer = view.findViewById(R.id.lcd_container)
         lcdWell = view.findViewById(R.id.lcd_well)
         lcdBezelNumbers = view.findViewById(R.id.lcd_bezel_numbers)
         fnKeysColumn = view.findViewById(R.id.fn_keys_column)
         lidChinRow = view.findViewById(R.id.lid_chin_row)
+        chinEmblem = view.findViewById(R.id.wqx_chin_emblem)
+        lidOnOffBtn = view.findViewById(R.id.btn_onoff)
+        lidChinUrl = view.findViewById(R.id.lid_chin_url)
+        speakerGrilleView = view.findViewById(R.id.wqx_speaker_grille)
+        deckFnBar = view.findViewById(R.id.wqx_deck_fn_bar)
         keypadLayout = view.findViewById(R.id.keypad_layout)
         lcdSurface = view.findViewById(R.id.lcd_surface)
         infoText = view.findViewById(R.id.info_text)
+
+        authLidPadLeft = upperLidPanel.paddingLeft
+        authLidPadTop = upperLidPanel.paddingTop
+        authLidPadRight = upperLidPanel.paddingRight
+        authLidPadBottom = upperLidPanel.paddingBottom
+        authBezelPadLeft = lcdContainer.paddingLeft
+        authBezelPadTop = lcdContainer.paddingTop
+        authBezelPadRight = lcdContainer.paddingRight
+        authBezelPadBottom = lcdContainer.paddingBottom
+
         keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_f1), 0x10)
         keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_f2), 0x11)
         keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_f3), 0x12)
         keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_f4), 0x13)
-        keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_onoff), 0x0F)
+        keypadLayout.bindExternalKeyButton(lidOnOffBtn, 0x0F)
+        keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_deck_f1), 0x10)
+        keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_deck_f2), 0x11)
+        keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_deck_f3), 0x12)
+        keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_deck_f4), 0x13)
+        keypadLayout.bindExternalKeyButton(view.findViewById(R.id.btn_deck_onoff), 0x0F)
+        applySkinMode()
         keypadLayout.setOnButtonTouchListener(object : OnButtonPressedListener {
             override fun onButtonDown() {
                 vibrationHelper.vibrate(vibrationSetting)
@@ -443,6 +479,45 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         outState.putBoolean(KEY_SPEED_UP, speedUp)
     }
 
+    private fun applySkinMode() {
+        if (view == null || !::upperLidPanel.isInitialized) return
+        val density = resources.displayMetrics.density
+        val isFullLcd = isFullLcdSkin
+
+        fnKeysColumn.visibility = if (isFullLcd) View.GONE else View.VISIBLE
+        lidOnOffBtn.visibility = if (isFullLcd) View.GONE else View.VISIBLE
+        lidChinUrl.visibility = if (isFullLcd) View.VISIBLE else View.GONE
+        speakerGrilleView.visibility = if (isFullLcd) View.GONE else View.VISIBLE
+        deckFnBar.visibility = if (isFullLcd) View.VISIBLE else View.GONE
+
+        if (isFullLcd) {
+            val lidSide = (7.5f * density).toInt()
+            val lidBottom = (7f * density).toInt()
+            upperLidPanel.setPadding(lidSide, authLidPadTop, lidSide, lidBottom)
+            val bezelSide = (5.5f * density).toInt()
+            val bezelTop = (6f * density).toInt()
+            val bezelBot = (5f * density).toInt()
+            lcdContainer.setPadding(bezelSide, bezelTop, bezelSide, bezelBot)
+            lidChinRow.minimumHeight = resources.getDimensionPixelSize(R.dimen.lid_chin_min_height_full_lcd)
+            chinEmblem.layoutParams = chinEmblem.layoutParams.apply {
+                height = (24f * density).toInt()
+            }
+        } else {
+            upperLidPanel.setPadding(authLidPadLeft, authLidPadTop, authLidPadRight, authLidPadBottom)
+            lcdContainer.setPadding(authBezelPadLeft, authBezelPadTop, authBezelPadRight, authBezelPadBottom)
+            lidChinRow.minimumHeight = resources.getDimensionPixelSize(R.dimen.lid_chin_min_height)
+            chinEmblem.layoutParams = chinEmblem.layoutParams.apply {
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
+
+        (emulatorContainer as? WqxClamshellContainerLayout)?.configureSkin(
+            isFullLcd = isFullLcd,
+            showStatus = showLcdStatusSetting
+        )
+        lowerDeckPanel.isFullLcdMode = isFullLcd
+    }
+
     private fun updateLcdLayoutSize() {
         if (view == null || !::upperLidPanel.isInitialized) return
         val lidWidth = upperLidPanel.width
@@ -450,9 +525,13 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         if (lidWidth <= 0 || lidHeight <= 0) return
 
         val density = resources.displayMetrics.density
-        val fnLp = fnKeysColumn.layoutParams as? ViewGroup.MarginLayoutParams
-        val fnWidthReserve = resources.getDimensionPixelSize(R.dimen.function_keypad_width) +
-            (fnLp?.leftMargin ?: 0) + (fnLp?.rightMargin ?: 0)
+        val fnWidthReserve = if (fnKeysColumn.visibility == View.GONE) {
+            0
+        } else {
+            val fnLp = fnKeysColumn.layoutParams as? ViewGroup.MarginLayoutParams
+            resources.getDimensionPixelSize(R.dimen.function_keypad_width) +
+                (fnLp?.leftMargin ?: 0) + (fnLp?.rightMargin ?: 0)
+        }
 
         val horizChrome = upperLidPanel.paddingLeft + upperLidPanel.paddingRight +
             lcdContainer.paddingLeft + lcdContainer.paddingRight +
@@ -467,8 +546,12 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         val numReserve = (if (lcdBezelNumbers.height > 0) lcdBezelNumbers.height else (15f * density).toInt()) +
             (numLp?.topMargin ?: 0) + (numLp?.bottomMargin ?: 0)
         val chinLp = lidChinRow.layoutParams as? ViewGroup.MarginLayoutParams
-        val chinReserve = resources.getDimensionPixelSize(R.dimen.lid_chin_min_height) +
-            (chinLp?.topMargin ?: 0) + (chinLp?.bottomMargin ?: 0)
+        val chinMinH = if (isFullLcdSkin) {
+            resources.getDimensionPixelSize(R.dimen.lid_chin_min_height_full_lcd)
+        } else {
+            resources.getDimensionPixelSize(R.dimen.lid_chin_min_height)
+        }
+        val chinReserve = chinMinH + (chinLp?.topMargin ?: 0) + (chinLp?.bottomMargin ?: 0)
 
         val vertChrome = upperLidPanel.paddingTop + upperLidPanel.paddingBottom +
             brandReserve +
@@ -492,10 +575,11 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         val currentParams = lcdSurface.layoutParams
         val wellOuterWidth = targetWidth + lcdWell.paddingLeft + lcdWell.paddingRight
         val wellOuterHeight = targetHeight + lcdWell.paddingTop + lcdWell.paddingBottom
+        val fnNeedsUpdate = fnKeysColumn.visibility != View.GONE && fnKeysColumn.layoutParams.height != wellOuterHeight
         if (currentParams.width != targetWidth ||
             currentParams.height != targetHeight ||
             lcdBezelNumbers.layoutParams.width != wellOuterWidth ||
-            fnKeysColumn.layoutParams.height != wellOuterHeight
+            fnNeedsUpdate
         ) {
             currentParams.width = targetWidth
             currentParams.height = targetHeight
@@ -504,8 +588,10 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
             lcdBezelNumbers.layoutParams = lcdBezelNumbers.layoutParams.apply {
                 width = wellOuterWidth
             }
-            fnKeysColumn.layoutParams = fnKeysColumn.layoutParams.apply {
-                height = wellOuterHeight
+            if (fnKeysColumn.visibility != View.GONE) {
+                fnKeysColumn.layoutParams = fnKeysColumn.layoutParams.apply {
+                    height = wellOuterHeight
+                }
             }
         }
     }
@@ -566,6 +652,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
 
     override fun onResume() {
         super.onResume()
+        applySkinMode()
         updateLcdLayoutSize()
         startEmulation()
     }
@@ -716,6 +803,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
     private val showPixelGridSetting: Boolean
         get() = preferences.getBoolean(LcdStatusRenderer.PREF_SHOW_PIXEL_GRID, true)
 
+    private val isFullLcdSkin: Boolean
+        get() = preferences.getString(PREF_SKIN, SKIN_AUTHENTIC) == SKIN_FULL_LCD
+
     private fun showResetDialog() {
         AlertDialog.Builder(requireContext())
                 .setTitle(R.string.reset_wqx)
@@ -845,6 +935,9 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         private const val STATE_FILE_NAME = "nc1020.sts"
         const val SAVE_STATES_KEY = "save_states"
         private const val ENABLE_BEEP_KEY = "enable_beep"
+        private const val PREF_SKIN = "skin"
+        private const val SKIN_AUTHENTIC = "authentic"
+        private const val SKIN_FULL_LCD = "full_lcd"
 
         fun ensureSessionInitialized(context: android.content.Context, force: Boolean = false) {
             if (sessionActive && !force) return

@@ -293,6 +293,17 @@
                     android:id="@+id/btn_onoff"
                     android:layout_width="@dimen/onoff_assembly_size"
                     android:layout_height="@dimen/onoff_assembly_size" />
+
+                <TextView
+                    android:id="@+id/lid_chin_url"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.18"
+                    android:singleLine="true"
+                    android:text="www.ggv.com.cn"
+                    android:textColor="@color/wqx_speaker_url"
+                    android:textSize="9.5sp"
+                    android:visibility="gone" />
             </LinearLayout>
         </org.liberty.android.nc1020emu.WqxUpperLidLayout>
 
@@ -325,12 +336,148 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="5dp" />
 
+            <!-- Brushed-Silver [Speaker + F1..F4 + ON/OFF] Deck Bar for "Full LCD" Skin -->
+            <LinearLayout
+                android:id="@+id/wqx_deck_fn_bar"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/deck_fn_bar_height"
+                android:layout_marginBottom="5dp"
+                android:background="@drawable/wqx_speaker_panel_bg"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="3dp"
+                android:visibility="gone">
+
+                <org.liberty.android.nc1020emu.WqxSpeakerDotsView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1.2" />
+
+                <LinearLayout
+                    android:id="@+id/btn_deck_f1"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="2dp"
+                        android:duplicateParentState="true"
+                        android:singleLine="true"
+                        android:text="F1 插入"
+                        android:textColor="@color/wqx_fn_label_text"
+                        android:textSize="@dimen/function_label_text_size"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="@dimen/function_pill_width"
+                        android:layout_height="@dimen/function_pill_height"
+                        android:background="@drawable/wqx_fn_pill_button"
+                        android:duplicateParentState="true" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/btn_deck_f2"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="2dp"
+                        android:duplicateParentState="true"
+                        android:singleLine="true"
+                        android:text="F2 删除"
+                        android:textColor="@color/wqx_fn_label_text"
+                        android:textSize="@dimen/function_label_text_size"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="@dimen/function_pill_width"
+                        android:layout_height="@dimen/function_pill_height"
+                        android:background="@drawable/wqx_fn_pill_button"
+                        android:duplicateParentState="true" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/btn_deck_f3"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="2dp"
+                        android:duplicateParentState="true"
+                        android:singleLine="true"
+                        android:text="F3 查找"
+                        android:textColor="@color/wqx_fn_label_text"
+                        android:textSize="@dimen/function_label_text_size"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="@dimen/function_pill_width"
+                        android:layout_height="@dimen/function_pill_height"
+                        android:background="@drawable/wqx_fn_pill_button"
+                        android:duplicateParentState="true" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/btn_deck_f4"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="2dp"
+                        android:duplicateParentState="true"
+                        android:singleLine="true"
+                        android:text="F4 修改"
+                        android:textColor="@color/wqx_fn_label_text"
+                        android:textSize="@dimen/function_label_text_size"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="@dimen/function_pill_width"
+                        android:layout_height="@dimen/function_pill_height"
+                        android:background="@drawable/wqx_fn_pill_button"
+                        android:duplicateParentState="true" />
+                </LinearLayout>
+
+                <org.liberty.android.nc1020emu.WqxOnOffButtonView
+                    android:id="@+id/btn_deck_onoff"
+                    android:layout_width="@dimen/deck_onoff_size"
+                    android:layout_height="@dimen/deck_onoff_size"
+                    android:layout_marginStart="3dp" />
+            </LinearLayout>
+
             <org.liberty.android.nc1020emu.KeypadLayout
                 android:id="@+id/keypad_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
             <View
+                android:id="@+id/wqx_chin_latch"
                 android:layout_width="40dp"
                 android:layout_height="7dp"
                 android:layout_marginTop="6dp"

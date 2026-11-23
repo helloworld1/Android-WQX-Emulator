@@ -30,6 +30,17 @@ class WqxClamshellContainerLayout @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr) {
 
+    private var isFullLcdMode = false
+    private var showLcdStatus = true
+
+    fun configureSkin(isFullLcd: Boolean, showStatus: Boolean) {
+        if (this.isFullLcdMode != isFullLcd || this.showLcdStatus != showStatus) {
+            this.isFullLcdMode = isFullLcd
+            this.showLcdStatus = showStatus
+            requestLayout()
+        }
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         if (orientation != VERTICAL || childCount < 3 || MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -59,7 +70,12 @@ class WqxClamshellContainerLayout @JvmOverloads constructor(
                 lowerLp.topMargin - lowerLp.bottomMargin
         ).coerceAtLeast(2)
 
-        val idealUpperH = (upperW * 0.76f).roundToInt().coerceAtLeast(1)
+        val idealUpperRatio = when {
+            !isFullLcdMode -> 0.76f
+            showLcdStatus -> 0.675f
+            else -> 0.75f
+        }
+        val idealUpperH = (upperW * idealUpperRatio).roundToInt().coerceAtLeast(1)
         // Reserve at least 46% for upper lid when vertically constrained, up to idealUpperH on tall screens
         val initialUpperH = min(idealUpperH, (availForHalves * 0.46f).roundToInt().coerceAtLeast(1))
         val maxLowerH = (availForHalves - initialUpperH).coerceAtLeast(1)
@@ -108,7 +124,8 @@ class WqxClamshellContainerLayout @JvmOverloads constructor(
 
 /**
  * Lower clamshell keyboard base containing:
- * [0] WqxSpeakerGrilleView, [1] bounded-aspect KeypadLayout, [2] bottom latch View.
+ * - Authentic skin: WqxSpeakerGrilleView + bounded-aspect KeypadLayout + bottom latch View
+ * - Full LCD skin: brushed-silver [Speaker + F1..F4 + ON/OFF] bar + KeypadLayout + bottom latch View
  */
 class WqxLowerDeckLayout @JvmOverloads constructor(
     context: Context,
@@ -117,6 +134,13 @@ class WqxLowerDeckLayout @JvmOverloads constructor(
 ) : LinearLayout(context, attrs, defStyleAttr) {
 
     private val density = resources.displayMetrics.density
+    var isFullLcdMode: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                requestLayout()
+            }
+        }
 
     init {
         orientation = VERTICAL
@@ -124,7 +148,10 @@ class WqxLowerDeckLayout @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        if (childCount < 3 || MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) {
+        val topBar = findViewById<View>(if (isFullLcdMode) R.id.wqx_deck_fn_bar else R.id.wqx_speaker_grille)
+        val keypad = findViewById<View>(R.id.keypad_layout)
+        val latch = findViewById<View>(R.id.wqx_chin_latch)
+        if (topBar == null || keypad == null || latch == null || MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
             return
         }
@@ -135,11 +162,7 @@ class WqxLowerDeckLayout @JvmOverloads constructor(
         val innerW = (totalW - paddingLeft - paddingRight).coerceAtLeast(1)
         val innerH = (totalH - paddingTop - paddingBottom).coerceAtLeast(1)
 
-        val speaker = getChildAt(0)
-        val keypad = getChildAt(1)
-        val latch = getChildAt(2)
-
-        val speakerLp = speaker.layoutParams as LayoutParams
+        val speakerLp = topBar.layoutParams as LayoutParams
         val keypadLp = keypad.layoutParams as LayoutParams
         val latchLp = latch.layoutParams as LayoutParams
 
@@ -147,15 +170,19 @@ class WqxLowerDeckLayout @JvmOverloads constructor(
         val latchTotalH = latch.measuredHeight + latchLp.topMargin + latchLp.bottomMargin
 
         val minSpeakerH = (38f * density).roundToInt()
-        val idealSpeakerH = (
-            innerW * if (heightMode == MeasureSpec.EXACTLY) 0.145f else 0.185f
-        ).roundToInt().coerceAtLeast(minSpeakerH)
+        val idealSpeakerH = if (isFullLcdMode) {
+            resources.getDimensionPixelSize(R.dimen.deck_fn_bar_height).coerceAtLeast(minSpeakerH)
+        } else {
+            (innerW * if (heightMode == MeasureSpec.EXACTLY) 0.145f else 0.185f)
+                .roundToInt()
+                .coerceAtLeast(minSpeakerH)
+        }
 
         val nonSpeakerChrome = latchTotalH + speakerLp.topMargin + speakerLp.bottomMargin +
             keypadLp.topMargin + keypadLp.bottomMargin
         val keypadAvailW = (innerW - keypadLp.leftMargin - keypadLp.rightMargin).coerceAtLeast(1)
 
-        // Give speaker its ideal height if there is room, shrinking down to minSpeakerH on short screens
+        // Give top bar its ideal height if there is room, shrinking down to minSpeakerH on short screens
         val maxKeypadWithIdealSpeaker = (innerH - nonSpeakerChrome - idealSpeakerH).coerceAtLeast(1)
         val maxKeypadWithMinSpeaker = (innerH - nonSpeakerChrome - minSpeakerH).coerceAtLeast(1)
         keypad.measure(
@@ -163,7 +190,7 @@ class WqxLowerDeckLayout @JvmOverloads constructor(
             MeasureSpec.makeMeasureSpec(maxKeypadWithIdealSpeaker, MeasureSpec.AT_MOST)
         )
         if (keypad.measuredWidth < keypadAvailW && maxKeypadWithMinSpeaker > maxKeypadWithIdealSpeaker) {
-            // Screen is vertically tight enough that keypad hit its 1.21:1 floor; shrink speaker first
+            // Screen is vertically tight enough that keypad hit its 1.21:1 floor; shrink top bar first
             keypad.measure(
                 MeasureSpec.makeMeasureSpec(keypadAvailW, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(maxKeypadWithMinSpeaker, MeasureSpec.AT_MOST)
@@ -174,21 +201,24 @@ class WqxLowerDeckLayout @JvmOverloads constructor(
         val remainingForSpeaker = (
             innerH - keypadTotalH - latchTotalH - speakerLp.topMargin - speakerLp.bottomMargin
         ).coerceAtLeast(1)
-        val targetSpeakerH = if (heightMode == MeasureSpec.EXACTLY) {
-            remainingForSpeaker.coerceIn(
-                min(minSpeakerH, remainingForSpeaker),
-                (innerW * 0.22f).roundToInt().coerceAtLeast(idealSpeakerH)
-            )
+        val maxTopBarH = if (isFullLcdMode) {
+            (idealSpeakerH * 1.08f).roundToInt()
+        } else if (heightMode == MeasureSpec.EXACTLY) {
+            (innerW * 0.22f).roundToInt().coerceAtLeast(idealSpeakerH)
         } else {
-            remainingForSpeaker.coerceIn(min(minSpeakerH, remainingForSpeaker), idealSpeakerH)
+            idealSpeakerH
         }
+        val targetSpeakerH = remainingForSpeaker.coerceIn(
+            min(minSpeakerH, remainingForSpeaker),
+            maxTopBarH
+        )
 
         val speakerAvailW = (innerW - speakerLp.leftMargin - speakerLp.rightMargin).coerceAtLeast(1)
-        speaker.measure(
+        topBar.measure(
             MeasureSpec.makeMeasureSpec(speakerAvailW, MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(targetSpeakerH, MeasureSpec.EXACTLY)
         )
-        val speakerTotalH = speaker.measuredHeight + speakerLp.topMargin + speakerLp.bottomMargin
+        val speakerTotalH = topBar.measuredHeight + speakerLp.topMargin + speakerLp.bottomMargin
 
         val contentH = paddingTop + speakerTotalH + keypadTotalH + latchTotalH + paddingBottom
         val measuredH = if (heightMode == MeasureSpec.EXACTLY) totalH else min(totalH, contentH)
@@ -792,5 +822,62 @@ class WqxSpeakerGrilleView @JvmOverloads constructor(
         val urlX = w - 12f * density
         val urlY = h - (6.5f * density).coerceAtMost(h * 0.18f)
         canvas.drawText("www.ggv.com.cn", urlX, urlY, urlPaint)
+    }
+}
+
+/**
+ * Compact speaker perforation matrix used on the left side of the brushed-silver
+ * [Speaker + F1..F4 + ON/OFF] deck bar in the "Full LCD" skin.
+ */
+class WqxSpeakerDotsView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : View(context, attrs, defStyleAttr) {
+
+    private val density = resources.displayMetrics.density
+    private val holePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = ContextCompat.getColor(context, R.color.wqx_speaker_hole)
+    }
+    private val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1f * density
+        color = ContextCompat.getColor(context, R.color.wqx_speaker_panel_stroke)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (w <= 0f || h <= 0f) return
+
+        val padX = 4f * density
+        val rightInset = 7f * density
+        val padY = (h * 0.18f).coerceAtLeast(5f * density)
+        val availW = (w - padX - rightInset).coerceAtLeast(1f)
+        val availH = (h - padY * 2f).coerceAtLeast(1f)
+        val targetPitch = 6.2f * density
+
+        val cols = ((availW / targetPitch).toInt() + 1).coerceIn(5, 11)
+        val rows = ((availH / targetPitch).toInt() + 1).coerceIn(4, 6)
+        val pitchX = if (cols > 1) availW / (cols - 1).toFloat() else 0f
+        val pitchY = if (rows > 1) availH / (rows - 1).toFloat() else 0f
+        val radius = (min(if (pitchX > 0f) pitchX else targetPitch, if (pitchY > 0f) pitchY else targetPitch) * 0.28f)
+            .coerceIn(1.2f * density, 2.2f * density)
+
+        val startX = padX + (availW - pitchX * (cols - 1)) * 0.5f
+        val startY = (h - pitchY * (rows - 1)) * 0.5f
+
+        for (r in 0 until rows) {
+            val cy = startY + r * pitchY
+            for (c in 0 until cols) {
+                val cx = startX + c * pitchX
+                canvas.drawCircle(cx, cy, radius, holePaint)
+            }
+        }
+
+        val divX = w - 2f * density
+        canvas.drawLine(divX, h * 0.16f, divX, h * 0.84f, dividerPaint)
     }
 }

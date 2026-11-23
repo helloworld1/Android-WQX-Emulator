@@ -6,5 +6,8 @@
     <dimen name="function_label_text_size">8sp</dimen>
     <dimen name="onoff_assembly_size">42dp</dimen>
     <dimen name="lid_chin_min_height">44dp</dimen>
+    <dimen name="lid_chin_min_height_full_lcd">24dp</dimen>
+    <dimen name="deck_fn_bar_height">44dp</dimen>
+    <dimen name="deck_onoff_size">37dp</dimen>
     <dimen name="toolbar_height">42dp</dimen>
 </resources>
