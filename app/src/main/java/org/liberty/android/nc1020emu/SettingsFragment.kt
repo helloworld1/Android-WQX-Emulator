@@ -14,6 +14,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings, rootKey)
 
+        findPreference<ListPreference>("skin")?.let { skinPref ->
+            if (skinPref.value != "original" && skinPref.value != "full_lcd") {
+                skinPref.value = "original"
+            }
+        }
+
         val vibrationHelper = VibrationHelper(requireContext())
         findPreference<ListPreference>(VibrationHelper.PREF_KEY)?.setOnPreferenceChangeListener { _, newValue ->
             vibrationHelper.vibrate(newValue as? String)

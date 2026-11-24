@@ -42,7 +42,7 @@
         app:title="@string/skin_setting_title"
         app:entries="@array/skin_entries"
         app:entryValues="@array/skin_values"
-        app:defaultValue="authentic"
+        app:defaultValue="original"
         app:useSimpleSummaryProvider="true"/>
 
     <androidx.preference.ListPreference

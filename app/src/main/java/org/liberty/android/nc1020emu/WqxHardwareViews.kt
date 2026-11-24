@@ -124,7 +124,7 @@ class WqxClamshellContainerLayout @JvmOverloads constructor(
 
 /**
  * Lower clamshell keyboard base containing:
- * - Authentic skin: WqxSpeakerGrilleView + bounded-aspect KeypadLayout + bottom latch View
+ * - Original skin: WqxSpeakerGrilleView + bounded-aspect KeypadLayout + bottom latch View
  * - Full LCD skin: brushed-silver [Speaker + F1..F4 + ON/OFF] bar + KeypadLayout + bottom latch View
  */
 class WqxLowerDeckLayout @JvmOverloads constructor(

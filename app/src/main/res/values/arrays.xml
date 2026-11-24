@@ -13,12 +13,12 @@
     </string-array>
 
     <string-array name="skin_entries">
-        <item>@string/skin_authentic</item>
+        <item>@string/skin_original</item>
         <item>@string/skin_full_lcd</item>
     </string-array>
 
     <string-array name="skin_values">
-        <item>authentic</item>
+        <item>original</item>
         <item>full_lcd</item>
     </string-array>
 

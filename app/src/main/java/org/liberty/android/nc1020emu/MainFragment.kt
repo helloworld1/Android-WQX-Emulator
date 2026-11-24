@@ -804,7 +804,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         get() = preferences.getBoolean(LcdStatusRenderer.PREF_SHOW_PIXEL_GRID, true)
 
     private val isFullLcdSkin: Boolean
-        get() = preferences.getString(PREF_SKIN, SKIN_AUTHENTIC) == SKIN_FULL_LCD
+        get() = preferences.getString(PREF_SKIN, SKIN_ORIGINAL) == SKIN_FULL_LCD
 
     private fun showResetDialog() {
         AlertDialog.Builder(requireContext())
@@ -936,7 +936,7 @@ class MainFragment : Fragment(), SurfaceHolder.Callback, FrameCallback {
         const val SAVE_STATES_KEY = "save_states"
         private const val ENABLE_BEEP_KEY = "enable_beep"
         private const val PREF_SKIN = "skin"
-        private const val SKIN_AUTHENTIC = "authentic"
+        private const val SKIN_ORIGINAL = "original"
         private const val SKIN_FULL_LCD = "full_lcd"
 
         fun ensureSessionInitialized(context: android.content.Context, force: Boolean = false) {

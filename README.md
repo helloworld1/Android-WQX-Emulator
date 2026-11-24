@@ -2,7 +2,7 @@
 
 ![WQX Emulator Feature Graphic](arts/feature_graphic.png)
 
-Bring the legendary **GoldenGlobal WQX NC1020 (文曲星)** pocket electronic dictionary, organizer, and retro gaming handheld back to life on Android — featuring a realistic NC1020 clamshell interface, selectable **Authentic** and **Full LCD** skins, fast cycle-paced native C emulation, and built-in Material 3 file tools.
+Bring the legendary **GoldenGlobal WQX NC1020 (文曲星)** pocket electronic dictionary, organizer, and retro gaming handheld back to life on Android — featuring a realistic NC1020 clamshell interface, selectable **Original** and **Full LCD** skins, fast cycle-paced native C emulation, and built-in Material 3 file tools.
 
 Whether you want to look up words with authentic robotic English speech, tend your virtual pet, push crates in *Sokoban*, grind martial arts in *Legend of Heroes (黄金英雄坛说)* and *Exorcist (伏魔记)*, read `.txt` books in wide-screen **Full LCD** mode, or write `GVBASIC` programs on the go, **WQX Emulator** recreates the genuine NC1020 hardware experience down to the LCD status segments and key beeps.
 
@@ -10,18 +10,18 @@ Whether you want to look up words with authentic robotic English speech, tend yo
 
 ## Screenshots
 
-### Authentic Clamshell & Full LCD Skins
+### Original Clamshell & Full LCD Skins
 
 | Home Clock & Calendar | English–Chinese Dictionary | Classic Games (*Sokoban*) | Full LCD Skin (`文书浏览`) |
 | :---: | :---: | :---: | :---: |
-| [<img src="arts/01_home_clock.png" width="200" alt="Home Clock and Calendar (Authentic Skin)" />](arts/01_home_clock.png) | [<img src="arts/02_english_dictionary.png" width="200" alt="English-Chinese Dictionary (Authentic Skin)" />](arts/02_english_dictionary.png) | [<img src="arts/03_game_sokoban.png" width="200" alt="Sokoban Built-in Game (Authentic Skin)" />](arts/03_game_sokoban.png) | [<img src="arts/05_ebook_reader.png" width="200" alt="WQX E-Book Reader (Full LCD Skin)" />](arts/05_ebook_reader.png) |
-| **Authentic** skin with synced clock & lunar calendar | Phonetic lookup with `发音` voice synthesis | Built-in puzzle & RPG classics | **Full LCD** wide-screen skin for `.txt` e-books |
+| [<img src="arts/01_home_clock.png" width="200" alt="Home Clock and Calendar (Original Skin)" />](arts/01_home_clock.png) | [<img src="arts/02_english_dictionary.png" width="200" alt="English-Chinese Dictionary (Original Skin)" />](arts/02_english_dictionary.png) | [<img src="arts/03_game_sokoban.png" width="200" alt="Sokoban Built-in Game (Original Skin)" />](arts/03_game_sokoban.png) | [<img src="arts/05_ebook_reader.png" width="200" alt="WQX E-Book Reader (Full LCD Skin)" />](arts/05_ebook_reader.png) |
+| **Original** skin with synced clock & lunar calendar | Phonetic lookup with `发音` voice synthesis | Built-in puzzle & RPG classics | **Full LCD** wide-screen skin for `.txt` e-books |
 
 ### Landscape Clamshell View
 
 [<img src="arts/04_landscape_mode.png" width="760" alt="Landscape Mode Clamshell Layout" />](arts/04_landscape_mode.png)
 
-*Side-by-side **Authentic** clamshell layout in landscape with the upper LCD bezel on the left and the tactile NC1020 keypad deck on the right.*
+*Side-by-side **Original** clamshell layout in landscape with the upper LCD bezel on the left and the tactile NC1020 keypad deck on the right.*
 
 ### NOR Flash File Manager & Customization
 
@@ -44,7 +44,7 @@ Whether you want to look up words with authentic robotic English speech, tend yo
   - Native AAudio / OpenSL ES audio pipeline supporting pitch-accurate key beeps, melodies, English word pronunciation (**发音**), and Mandarin voice time announcement (**报时**).
 - **Realistic Clamshell Skins & Tactile Vector Keypad**
   - **Two selectable hardware skins** in Settings (**Skin**):
-    - **Authentic** *(default)*: Faithful NC1020 silver/royal-blue clamshell frame with a 3D cylindrical hinge, speaker grille, side `F1–F4` pills, and `ON/OFF` power button in both **Portrait** and **Landscape**.
+    - **Original** *(default)*: Faithful NC1020 silver/royal-blue clamshell frame with a 3D cylindrical hinge, speaker grille, side `F1–F4` pills, and `ON/OFF` power button in both **Portrait** and **Landscape**.
     - **Full LCD**: Expands the dot-matrix LCD across the full width of the upper lid for maximum viewing size while relocating `F1–F4` and `ON/OFF` into a matching brushed-silver control bar above the keypad.
   - Crisp vector-drawn NC1020 keycaps with **bounded aspect ratio** so keys preserve natural proportions across both standard and tall phone screens.
   - Release-triggered short taps prevent accidental mistouches, while **long-pressing (`>500ms`) holds the key down** continuously until released for smooth scrolling and game movement.
