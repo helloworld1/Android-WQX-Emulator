@@ -1,0 +1,4 @@
+- Redesigned realistic WQX NC1020 clamshell frame and crisp vector keypad in portrait and landscape
+- Added Skin setting to switch between Original and Full LCD (full-width screen) layouts
+- Optimized keypad button aspect ratio and spacing for tall phone screens
+- Refined Light and Dark theme colors for a seamless hardware look

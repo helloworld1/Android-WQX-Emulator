@@ -3,6 +3,6 @@ Relive the classic WQX NC1020 (文曲星) electronic dictionary and pocket compu
 Highlights:
 • Built-in Classics: E-C/C-E dictionaries, calendar, schedule, calculator, GVBASIC, and nostalgic games including Legend of Heroes (英雄坛说), Exorcist (伏魔记), Block World, and Sokoban.
 • Authentic Look & Sound: Classic green dot-matrix LCD with side status icons and pixel grid, plus crisp key beeps, melodies, English pronunciation (发音), and Mandarin time announcement (报时).
-• Tactile Keypad & Layouts: Play comfortably in portrait or side-by-side landscape mode with release-triggered taps, long-press key hold, and customizable haptic feedback.
+• Realistic Skins & Tactile Keypad: Choose between Original clamshell and Full LCD skins in portrait or landscape, with crisp vector keys, release-triggered taps, long-press hold, and haptic feedback.
 • Built-in NOR File Manager: Browse, preview, import, and export WQX ebooks (.txt), GVBASIC programs (.bas), boot graphics (.ski), apps (.bin), and full .nor backups right on your phone.
 • Modern Convenience: Auto clock sync, SpeedUp turbo mode, automatic & manual save states, and Material 3 Light/Dark themes.
