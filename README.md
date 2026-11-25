@@ -92,3 +92,9 @@ Or open the project root directly in **Android Studio** and run the `app` config
 ## Acknowledgments
 
 Built upon [Banxian's C++ NC1020 sample & reverse-engineering documentation](https://github.com/banxian) and [hackwaly's `jswqx`](https://github.com/hackwaly/jswqx), with extensive native C rewrite, audio/LCD/timing accuracy improvements, NOR filesystem tooling, and Android UI enhancements.
+
+---
+
+## License
+
+Emulator code is released under the [MIT License](LICENSE).
