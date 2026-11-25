@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId "org.liberty.android.nc1020emu"
-        minSdk 21
+        minSdk 24
         targetSdk 37
         versionCode 6
         versionName "1.5"
@@ -48,11 +48,11 @@ androidComponents {
 }
 
 dependencies {
-    implementation "androidx.appcompat:appcompat:1.7.0"
-    implementation "androidx.navigation:navigation-fragment-ktx:2.7.7"
-    implementation "androidx.navigation:navigation-ui-ktx:2.7.7"
+    implementation "androidx.appcompat:appcompat:1.8.0"
+    implementation "androidx.navigation:navigation-fragment-ktx:2.10.2"
+    implementation "androidx.navigation:navigation-ui-ktx:2.10.2"
     implementation "androidx.preference:preference-ktx:1.2.1"
-    implementation "androidx.core:core-ktx:1.13.1"
-    implementation 'com.google.android.material:material:1.12.0'
+    implementation "androidx.core:core-ktx:1.19.1"
+    implementation 'com.google.android.material:material:1.14.0'
 }
 

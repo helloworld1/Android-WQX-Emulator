@@ -85,7 +85,7 @@ Whether you want to look up words with authentic robotic English speech, tend yo
 ./gradlew bundleRelease
 ```
 
-Or open the project root directly in **Android Studio** and run the `app` configuration on any Android 5.0+ (`minSdk 21`) device or emulator.
+Or open the project root directly in **Android Studio** and run the `app` configuration on any Android 7.0+ (`minSdk 24`) device or emulator.
 
 ---
 
